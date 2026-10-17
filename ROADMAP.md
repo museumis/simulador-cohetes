@@ -27,12 +27,12 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 ## Fase 1: portar la física, ya corregida
 
-- [ ] `src/fisica/constantes.ts`: g0, radio terrestre, μ y valores atmosféricos, todo en unidades SI y con su fuente.
-- [ ] `src/fisica/gravedad.ts`: gravedad según la altitud.
-- [ ] `src/fisica/motor.ts`: velocidad de expulsión `u = Isp · g0`, caudal másico, Isp y empuje según la presión.
-- [ ] `src/fisica/tsiolkovski.ts`: Δv por etapa y total.
-- [ ] `src/fisica/masas.ts`: masa inicial, fracciones de propelente y de carga útil.
-- [ ] Portar los tests del proyecto Java con los valores esperados recalculados y comparación con tolerancia.
+- [x] `src/fisica/constantes.ts`: g0, radio terrestre, μ y valores atmosféricos, todo en unidades SI y con su fuente.
+- [x] `src/fisica/gravedad.ts`: gravedad según la altitud.
+- [x] `src/fisica/motor.ts`: velocidad de expulsión `u = Isp · g0`, caudal másico, Isp y empuje según la presión.
+- [x] `src/fisica/tsiolkovski.ts`: Δv por etapa y total.
+- [x] `src/fisica/masas.ts`: masa inicial, fracciones de propelente y de carga útil.
+- [x] Portar los tests del proyecto Java con los valores esperados recalculados y comparación con tolerancia.
 
 **Hecho cuando:** `npm test` pasa y los resultados coinciden con los cálculos a mano de [FISICA.md](docs/FISICA.md).
 
