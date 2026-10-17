@@ -29,6 +29,7 @@ Por cada etapa:
 | `ispNivelMar` | s | Impulso específico al nivel del mar |
 | `ispVacio` | s | Impulso específico en vacío |
 | `diametro` | m | Para calcular el área frontal |
+| `longitud` | m | Solo para el esquema a escala; en la etapa 2 incluye la cofia y la carga útil |
 | `cd` | — | Coeficiente de arrastre, constante (aprox. 0,3–0,5) |
 
 Del cohete en conjunto: `masaCargaUtil` (kg) y `pausaSeparacion` (s, tiempo entre el fin de la etapa 1 y el encendido de la 2).

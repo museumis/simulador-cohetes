@@ -1,20 +1,444 @@
+/* Escala de grises con un único acento para el cursor de tiempo y la selección (docs/INTERFAZ.md). */
 :root {
-  color-scheme: light dark;
-  --fondo: #ffffff;
-  --texto: #1a1a1a;
+  color-scheme: dark;
+  --fondo: #111111;
+  --fondo-panel: #161616;
+  --texto: #d8d8d8;
+  --texto-tenue: #7a7a7a;
+  --borde: #333333;
+  --rejilla: #262626;
+  --acento: #e0a030;
   font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fondo: #111111;
-    --texto: #d8d8d8;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --fondo: #ffffff;
+    --fondo-panel: #f7f7f7;
+    --texto: #1a1a1a;
+    --texto-tenue: #8a8a8a;
+    --borde: #cccccc;
+    --rejilla: #e6e6e6;
+    --acento: #b86e00;
   }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --fondo: #ffffff;
+  --fondo-panel: #f7f7f7;
+  --texto: #1a1a1a;
+  --texto-tenue: #8a8a8a;
+  --borde: #cccccc;
+  --rejilla: #e6e6e6;
+  --acento: #b86e00;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: 1rem;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   background: var(--fondo);
   color: var(--texto);
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: var(--texto);
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: 0;
+}
+
+button {
+  padding: 0.1rem 0.5rem;
+  cursor: pointer;
+}
+
+button:hover,
+select:hover {
+  border-color: var(--texto-tenue);
+}
+
+button[aria-pressed='true'] {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+:focus-visible {
+  outline: 1px solid var(--acento);
+  outline-offset: 1px;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+.valor {
+  white-space: pre;
+}
+
+.panel {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--borde);
+  background: var(--fondo-panel);
+  padding: 0.4rem 0.6rem;
+  overflow: auto;
+}
+
+.panel-titulo {
+  display: flex;
+  justify-content: space-between;
+  color: var(--texto-tenue);
+  margin-bottom: 0.3rem;
+}
+
+.nota {
+  color: var(--texto-tenue);
+  margin: 0.3rem 0;
+}
+
+/* Cabecera */
+
+#cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--borde);
+}
+
+#cabecera .acciones {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* Distribución */
+
+#cuerpo {
+  display: flex;
+  min-height: 0;
+}
+
+#principal {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 27rem minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(15rem, 34%);
+  grid-template-areas:
+    'telemetria graficas graficas'
+    'telemetria esquema eventos';
+}
+
+#panel-telemetria {
+  grid-area: telemetria;
+}
+
+#panel-graficas {
+  grid-area: graficas;
+  padding: 0;
+  overflow: hidden auto;
+}
+
+#panel-esquema {
+  grid-area: esquema;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#panel-eventos {
+  grid-area: eventos;
+}
+
+#panel-parametros {
+  width: 31rem;
+  flex: none;
+}
+
+#panel-parametros[hidden] {
+  display: none;
+}
+
+/* Telemetría: columnas alineadas por el punto decimal */
+
+.tabla-valores td {
+  padding: 0.05rem 0;
+  white-space: nowrap;
+}
+
+.tabla-valores .simbolo {
+  padding-right: 1rem;
+  color: var(--texto-tenue);
+}
+
+.tabla-valores .entera {
+  text-align: right;
+  min-width: 7ch;
+}
+
+.tabla-valores .fraccion {
+  text-align: left;
+  min-width: 7ch;
+}
+
+.tabla-valores .unidad {
+  padding-left: 0.6rem;
+}
+
+.tabla-valores .extra {
+  padding-left: 1rem;
+  color: var(--texto-tenue);
+}
+
+/* Gráficas */
+
+.grafica-cabecera {
+  height: 22px;
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0 0.4rem;
+}
+
+.grafica-cabecera select,
+.grafica-cabecera button {
+  padding: 0 0.3rem;
+  font-size: 11px;
+}
+
+.grafica-lienzo {
+  position: relative;
+}
+
+.grafica-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--acento);
+  pointer-events: none;
+}
+
+.u-select {
+  background: color-mix(in srgb, var(--acento) 18%, transparent);
+}
+
+/* Esquema */
+
+#lienzo-esquema {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Eventos */
+
+.tabla-eventos {
+  width: 100%;
+}
+
+.tabla-eventos th {
+  font-weight: normal;
+  color: var(--texto-tenue);
+  text-align: right;
+  padding: 0 0 0.2rem 0.6rem;
+  white-space: nowrap;
+}
+
+.tabla-eventos th:nth-child(2) {
+  text-align: left;
+}
+
+.tabla-eventos td {
+  padding: 0.05rem 0 0.05rem 0.6rem;
+  white-space: nowrap;
+}
+
+.tabla-eventos td.numero {
+  text-align: right;
+}
+
+.tabla-eventos tbody tr {
+  cursor: pointer;
+}
+
+.tabla-eventos tbody tr:hover {
+  background: var(--rejilla);
+}
+
+.tabla-eventos tr.futuro {
+  color: var(--texto-tenue);
+}
+
+.tabla-eventos tr.actual td:first-child {
+  box-shadow: inset 2px 0 var(--acento);
+}
+
+/* Reproductor */
+
+#panel-reproductor {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.4rem 0.6rem;
+  border-top: 1px solid var(--borde);
+}
+
+.controles {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.pista {
+  position: relative;
+  flex: 1;
+  height: 20px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.pista::before,
+.pista-progreso {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--borde);
+}
+
+.pista::before {
+  right: 0;
+}
+
+.pista-progreso {
+  height: 2px;
+  margin-top: -0.5px;
+  background: var(--texto-tenue);
+}
+
+.pista-marca {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: var(--texto);
+}
+
+.pista-cabezal {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--acento);
+}
+
+/* Diagnóstico */
+
+#panel-diagnostico {
+  padding: 0.3rem 0.6rem;
+  border-top: 1px solid var(--borde);
+  color: var(--texto-tenue);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Parámetros */
+
+.fila-modelo {
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.tabla-parametros {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.tabla-parametros th,
+.tabla-parametros thead td {
+  font-weight: normal;
+  color: var(--texto-tenue);
+  text-align: left;
+}
+
+.tabla-parametros td {
+  padding: 0.1rem 0.4rem 0.1rem 0;
+  white-space: nowrap;
+}
+
+.tabla-parametros td.numero {
+  text-align: right;
+}
+
+.tabla-parametros input {
+  width: 8.5rem;
+  text-align: right;
+  padding: 0.05rem 0.3rem;
+}
+
+.tabla-parametros input.invalido {
+  border-color: var(--acento);
+  border-style: dashed;
+}
+
+.errores {
+  margin: 0 0 0.5rem;
+  padding-left: 1.2rem;
+  white-space: pre-wrap;
+}
+
+.errores:empty {
+  display: none;
+}
+
+/* Pantallas estrechas: los paneles se apilan sin perder datos */
+
+@media (max-width: 1100px) {
+  body {
+    height: auto;
+    display: block;
+  }
+
+  #cuerpo {
+    flex-direction: column;
+  }
+
+  #principal {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 48rem 22rem auto;
+    grid-template-areas: 'telemetria' 'graficas' 'esquema' 'eventos';
+  }
+
+  #panel-parametros {
+    width: auto;
+  }
+
+  #panel-reproductor {
+    position: sticky;
+    bottom: 0;
+    background: var(--fondo);
+    flex-wrap: wrap;
+  }
+
+  .pista {
+    flex-basis: 100%;
+    order: 3;
+  }
 }

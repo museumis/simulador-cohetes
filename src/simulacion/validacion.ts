@@ -84,6 +84,7 @@ export function validarCohete(cohete: Cohete): ErrorValidacion[] {
       ...(ispVacioValido ? { nota: 'no puede superar ispVacio' } : {}),
     });
     comprobar(errores, `${p}.diametro`, etapa.diametro, positivo('m'));
+    comprobar(errores, `${p}.longitud`, etapa.longitud, positivo('m'));
     comprobar(errores, `${p}.cd`, etapa.cd, noNegativo(''));
   });
   comprobar(errores, 'masaCargaUtil', cohete.masaCargaUtil, noNegativo('kg'));

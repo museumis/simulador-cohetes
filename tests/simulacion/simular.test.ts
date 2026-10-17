@@ -227,3 +227,11 @@ describe('límite de duración', () => {
     esperarCercano(r.muestras[r.muestras.length - 1]!.t, 100.01);
   });
 });
+
+describe('valores exactos en los eventos', () => {
+  it('v = 0 en el apogeo y h = 0 en el impacto, sin residuo de la raíz', () => {
+    expect(evento(nominal, 'apogeo').estado.velocidad).toBe(0);
+    expect(evento(nominal, 'impacto').estado.altitud).toBe(0);
+    expect(nominal.muestras.at(-1)!.altitud).toBe(0);
+  });
+});

@@ -42,13 +42,13 @@ simulador-cohetes/
 
 ```
 ui, render ──► reproduccion ──► simulacion ──► fisica
-ui ──────────► analisis ───────► simulacion
+ui ──────────► analisis ───────► simulacion, fisica
 ui ──────────► exportacion
 ```
 
-- `fisica/` y `simulacion/` **no usan el DOM, Canvas ni `window`**. Solo reciben números y devuelven números u objetos. Se prueban con Vitest sin navegador.
+- `fisica/`, `simulacion/`, `reproduccion/`, `analisis/` y `util/` **no usan el DOM, Canvas ni `window`**. Solo reciben números y devuelven números u objetos. Se prueban con Vitest sin navegador.
 - `render/` y `ui/` **solo leen** el estado interpolado del reproductor; nunca calculan física.
-- `analisis/` llama a `simular()` (p. ej. con dt/2 o en un barrido) y no usa el DOM.
+- `analisis/` llama a `simular()` (p. ej. con dt/2 o en un barrido) o a las funciones de `fisica/` (valores derivados de la entrada, sin simular).
 - Nada depende de `ui/` salvo `main.ts`.
 
 ## Tipos principales
@@ -61,6 +61,7 @@ interface Etapa {
   ispNivelMar: number;     // s
   ispVacio: number;        // s
   diametro: number;        // m
+  longitud: number;        // m, solo para el esquema; en la etapa 2 incluye la cofia
   cd: number;
 }
 
@@ -86,6 +87,7 @@ interface Muestra {
   densidad: number;        // kg/m³
   presion: number;         // Pa
   temperatura: number;     // K
+  velocidadSonido: number; // m/s
   presionDinamica: number; // Pa
   mach: number;
   arrastre: number;        // N
@@ -131,16 +133,17 @@ En la fase 5 se añaden `x`, `y` y los elementos orbitales; `altitud` y `velocid
 
 ## Reproductor
 
-- Lleva el tiempo de simulación `t` y lo avanza en cada `requestAnimationFrame`: `t += dtReal · velocidad`.
-- Busca las dos muestras que rodean `t` con búsqueda binaria e interpola linealmente.
+- Lleva el tiempo de simulación `t`. `main.ts` llama a `avanzar(dtReal)` en cada `requestAnimationFrame` (`t += dtReal · velocidad`); el reproductor no usa el DOM y se prueba sin navegador.
+- Busca las dos muestras que rodean `t` con búsqueda binaria e interpola linealmente (`util/interpolacion.ts`). En una discontinuidad (dos muestras con el mismo t) toma el estado posterior.
 - Expone `estadoActual(): Muestra` y los eventos ya ocurridos.
-- Operaciones: `reproducir()`, `pausar()`, `irA(t)`, `setVelocidad(x)` y `reiniciar()`.
-- Avisa a `ui/` cuando se cruza un evento (para resaltarlo en la lista).
+- Operaciones: `reproducir()`, `pausar()`, `alternar()`, `irA(t)`, `setVelocidad(x)`, `reiniciar()`, `pasoMuestra(±1)`, `saltarEvento(±1)` y `cargar(resultado)` (al recalcular, mantiene el instante).
+- Avisa a sus oyentes (`suscribir`) de cada cambio, con los eventos cruzados al avanzar. Las vistas se redibujan solo entonces.
 
 ## Render
 
 - Un `<canvas>` solo para el esquema; las gráficas son de uPlot y la telemetría es HTML con texto.
 - Esquema a escala: perfil del cohete en líneas finas y vectores de fuerza con su escala en N. Sin rellenos, sin color salvo el acento.
+- La escala de longitudes se fija con el cohete completo y la de fuerzas con el máximo del empuje y del peso en todo el vuelo, para que ninguna cambie durante la reproducción. El arrastre de la reentrada puede superar esa escala: el vector se recorta, se dibuja discontinuo y su módulo se rotula «fuera de escala».
 - Se redibuja solo cuando cambia el instante del reproductor.
 
 ## Decisiones

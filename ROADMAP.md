@@ -54,17 +54,17 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 ## Fase 3: primera versión usable
 
-- [ ] Esqueleto de `index.html` con la distribución de [INTERFAZ.md](docs/INTERFAZ.md): telemetría, gráficas, esquema, eventos, reproductor y parámetros.
-- [ ] Estilos base: escala de grises, fuente monoespaciada, tema oscuro y claro.
-- [ ] `src/reproduccion/reproductor.ts`: reloj de simulación, velocidades ×0.1 a ×100, pausa, paso a paso e interpolación entre muestras.
-- [ ] `src/ui/telemetria.ts`: todas las variables con unidad y cifras significativas coherentes.
-- [ ] `src/ui/graficas.ts`: gráficas apiladas con uPlot, eje de tiempo común, cursor sincronizado, marcas de eventos, zoom y escala logarítmica.
-- [ ] `src/render/esquema.ts`: perfil del cohete a escala en líneas finas y vectores de fuerza con su escala.
-- [ ] `src/ui/eventos.ts`: lista de eventos con salto al instante.
-- [ ] `src/ui/parametros.ts`: tabla de entrada con validación y valores derivados (masa al despegue, ṁ, tiempo de combustión, TWR inicial, Δv ideal).
-- [ ] `src/modelos/`: un caso de prueba con valores redondos y dos cohetes reales con datos públicos aproximados, con la fuente citada en el propio archivo.
-- [ ] Recalcular al cambiar un parámetro, con un retardo corto.
-- [ ] Atajos de teclado.
+- [x] Esqueleto de `index.html` con la distribución de [INTERFAZ.md](docs/INTERFAZ.md): telemetría, gráficas, esquema, eventos, reproductor y parámetros.
+- [x] Estilos base: escala de grises, fuente monoespaciada, tema oscuro y claro.
+- [x] `src/reproduccion/reproductor.ts`: reloj de simulación, velocidades ×0.1 a ×100, pausa, paso a paso e interpolación entre muestras.
+- [x] `src/ui/telemetria.ts`: todas las variables con unidad y cifras significativas coherentes.
+- [x] `src/ui/graficas.ts`: gráficas apiladas con uPlot, eje de tiempo común, cursor sincronizado, marcas de eventos, zoom y escala logarítmica.
+- [x] `src/render/esquema.ts`: perfil del cohete a escala en líneas finas y vectores de fuerza con su escala.
+- [x] `src/ui/eventos.ts`: lista de eventos con salto al instante.
+- [x] `src/ui/parametros.ts`: tabla de entrada con validación y valores derivados (masa al despegue, ṁ, tiempo de combustión, TWR inicial, Δv ideal).
+- [x] `src/modelos/`: un caso de prueba con valores redondos y dos cohetes reales con datos públicos aproximados, con la fuente citada en el propio archivo.
+- [x] Recalcular al cambiar un parámetro, con un retardo corto.
+- [x] Atajos de teclado (la exportación con E llega en la fase 4).
 
 **Hecho cuando:** se carga un modelo, se ejecuta y todos los paneles muestran valores coherentes y sincronizados.
 

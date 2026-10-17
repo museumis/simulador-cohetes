@@ -1,5 +1,5 @@
 import { areaFrontal, derivadaPresionDinamica, fuerzaArrastre, presionDinamica } from '../fisica/arrastre';
-import { datosAtmosfera, numeroMach, temperatura, type DatosAtmosfera } from '../fisica/atmosfera';
+import { datosAtmosfera, numeroMach, temperatura, velocidadSonido, type DatosAtmosfera } from '../fisica/atmosfera';
 import { MU_TIERRA, RADIO_TIERRA } from '../fisica/constantes';
 import { gravedad } from '../fisica/gravedad';
 import { masaInicial, masasCombustion } from '../fisica/masas';
@@ -383,6 +383,8 @@ class Vuelo {
         t1 = this.t + h;
         this.y1.set(this.yAux);
         this.dy1.set(this.dyAux);
+        // La raíz deja un residuo del orden de 1e-16 m; el impacto es h = 0 por definición.
+        this.y1[H] = 0;
         impacto = true;
       }
 
@@ -417,6 +419,8 @@ class Vuelo {
 
     if (y[V]! > 0 && y1[V]! <= 0) {
       const tau = this.localizar(h, (ya) => ya[V]!, y[V]!, y1[V]!);
+      // Igual que en el impacto: v = 0 por definición, sin el residuo de la raíz.
+      this.yAux[V] = 0;
       this.apogeo = this.proponer(this.apogeo, this.t + tau, this.yAux, this.yAux[H]!);
     }
 
@@ -500,6 +504,7 @@ class Vuelo {
       densidad: f.densidad,
       presion: f.presion,
       temperatura: temperatura(h),
+      velocidadSonido: velocidadSonido(h),
       presionDinamica: f.presionDinamica,
       mach: numeroMach(v, h),
       arrastre: f.arrastre,

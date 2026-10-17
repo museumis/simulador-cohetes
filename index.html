@@ -4,9 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Simulador de cohetes</title>
+    <link rel="icon" href="data:," />
   </head>
   <body>
-    <main id="app"></main>
+    <header id="cabecera">
+      <span id="resumen-configuracion" class="valor"></span>
+      <span class="acciones">
+        <button type="button" id="boton-unidades" title="Alternar entre SI y km · t · kN · kPa"></button>
+        <button type="button" id="boton-tema" title="Alternar tema oscuro y claro"></button>
+        <button type="button" id="boton-parametros" title="Abrir o cerrar los parámetros [P]" aria-controls="panel-parametros">parámetros [P]</button>
+      </span>
+    </header>
+    <div id="cuerpo">
+      <main id="principal">
+        <section id="panel-telemetria" class="panel" aria-label="Telemetría"></section>
+        <section id="panel-graficas" class="panel" aria-label="Gráficas"></section>
+        <section id="panel-esquema" class="panel" aria-label="Esquema a escala">
+          <div class="panel-titulo">ESQUEMA (a escala)</div>
+          <canvas id="lienzo-esquema"></canvas>
+        </section>
+        <section id="panel-eventos" class="panel" aria-label="Eventos"></section>
+      </main>
+      <aside id="panel-parametros" class="panel" aria-label="Parámetros"></aside>
+    </div>
+    <section id="panel-reproductor" aria-label="Reproductor"></section>
+    <footer id="panel-diagnostico" class="valor"></footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

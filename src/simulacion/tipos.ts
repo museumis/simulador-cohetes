@@ -6,6 +6,7 @@ export interface Etapa {
   ispNivelMar: number;    // s
   ispVacio: number;       // s
   diametro: number;       // m, para el área frontal
+  longitud: number;       // m, solo para el esquema a escala; en la etapa 2 incluye la cofia
   cd: number;             // coeficiente de arrastre, adimensional
 }
 
@@ -44,6 +45,7 @@ export interface Muestra {
   densidad: number;        // kg/m³
   presion: number;         // Pa
   temperatura: number;     // K
+  velocidadSonido: number; // m/s
   presionDinamica: number; // Pa
   mach: number;
   arrastre: number;        // N, módulo

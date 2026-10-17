@@ -6,7 +6,7 @@
 - **Los datos son la interfaz:** cada elemento en pantalla es una magnitud con su unidad, una gráfica con ejes rotulados o un esquema a escala.
 - **Paleta neutra:** escala de grises sobre fondo oscuro o claro. Un único color de acento para el cursor de tiempo y la selección. Las series de una gráfica se distinguen por tipo de línea (continua, discontinua, punteada) antes que por color.
 - **Tipografía monoespaciada** para todos los valores numéricos, alineados por la coma decimal.
-- **Precisión explícita:** cifras significativas coherentes con el modelo, notación científica cuando corresponda y unidades SI siempre visibles (con la opción de mostrar km, t y kN).
+- **Precisión explícita:** cifras significativas coherentes con el modelo, notación científica fuera de [10⁻², 10⁷) y unidades SI siempre visibles (con la opción de mostrar km, t, kN y kPa).
 - **Manejo con teclado** en todo.
 
 ## Distribución
@@ -55,12 +55,13 @@ Todas las variables de estado y derivadas en el instante actual, con su unidad: 
 - Series disponibles: cualquier variable de la telemetría. Por defecto: h, v, a, m, q y Mach.
 - Líneas verticales en los eventos.
 - Zoom y desplazamiento con el ratón; doble clic para restablecer.
-- Escala logarítmica opcional por eje (útil para ρ, p y q).
+- Escala logarítmica opcional por eje (útil para ρ, p y q). Abarca como mucho 15 décadas bajo el máximo de la serie y solo rotula potencias de 10.
+- Un clic (sin arrastrar) lleva el reproductor a ese instante.
 - En 2D, además: altitud frente al alcance, a escala real o con exageración vertical indicada en el eje.
 
 ### Esquema
 - Perfil del cohete en líneas finas y a escala (longitud y diámetro de cada etapa), sin relleno ni color.
-- Vectores de fuerza (empuje, arrastre, peso) con longitud proporcional al módulo y escala indicada en N.
+- Vectores de fuerza (empuje, arrastre, peso) con longitud proporcional al módulo y escala indicada en N, en un diagrama de cuerpo libre junto al perfil, con origen común y cada vector en su columna.
 - En 2D: vector velocidad, ángulo de ataque y ángulo de trayectoria con cotas.
 
 ### Presupuesto de Δv
