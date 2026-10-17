@@ -125,7 +125,7 @@ dm/dt = −ṁ       (solo durante la combustión)
 
 ### Secuencia de vuelo
 
-1. **En la plataforma:** mientras `F ≤ m·g`, el cohete no se mueve (h = 0, v = 0). Si el empuje de la etapa 1 nunca supera el peso, se informa de que no despega.
+1. **En la plataforma:** mientras `F ≤ m·g`, el cohete no se mueve (h = 0, v = 0). Como la masa baja linealmente, el instante del despegue se calcula de forma exacta: `t = (m0 − F/g) / ṁ`, con F y g a nivel del mar. Si el empuje de la etapa 1 nunca supera el peso, se informa de que no despega y la simulación termina al fin de su combustión.
 2. **Combustión de la etapa 1** hasta agotar `masaPropelente1`.
 3. **Separación:** `m −= masaSeca1`. Comienza un vuelo libre durante `pausaSeparacion`.
 4. **Combustión de la etapa 2.**
@@ -136,9 +136,9 @@ dm/dt = −ṁ       (solo durante la combustión)
 
 - RK4 con paso fijo `dt = 0,01 s` (configurable).
 - Si el paso actual atravesaría el fin de una combustión, se acorta para terminar justo en ese instante. Así la masa nunca queda negativa y las discontinuidades del empuje no degradan el orden del método.
-- Los eventos sin instante conocido de antemano (Mach 1, Max-Q, apogeo, impacto) se localizan dentro del paso por interpolación (o bisección sobre el paso RK4).
+- Los eventos sin instante conocido de antemano (Mach 1, Max-Q, apogeo, impacto) se localizan dentro del paso buscando la raíz sobre el propio paso RK4 acortado (regula falsi de Illinois, tolerancia 10⁻¹² s). Así la precisión del evento es la del integrador y no la de una interpolación.
 - Estimación del error: se repite la simulación con `dt/2` y se aplica extrapolación de Richardson, `error ≈ (x_dt − x_dt/2) / (2⁴ − 1)`.
-- La salida se muestrea a 20 Hz (cada 0,05 s), más una muestra exacta en cada evento.
+- La salida se muestrea a 20 Hz (cada 0,05 s) con interpolación cúbica de Hermite dentro del paso (error O(dt⁴), sin evaluaciones extra), más una muestra exacta en cada evento. En una discontinuidad (separación) hay dos muestras con el mismo t: antes y después.
 - Límite de seguridad: 2 horas de vuelo simulado.
 
 ### Eventos
@@ -146,13 +146,13 @@ dm/dt = −ṁ       (solo durante la combustión)
 | Evento | Condición |
 |---|---|
 | Despegue | Primer instante con F > m·g |
-| Mach 1 | Mach cruza 1 hacia arriba |
-| Max-Q | Máximo de q durante el ascenso |
+| Mach 1 | Mach cruza 1 hacia arriba (solo la primera vez) |
+| Max-Q | Máximo global de q con v > 0: dq/dt pasa de + a −, dentro de un paso o justo en un fin de combustión |
 | Fin de combustión 1 | Propelente 1 agotado |
 | Separación | A la vez que el fin de combustión 1 |
 | Encendido 2 | Fin de combustión 1 + `pausaSeparacion` |
 | Fin de combustión 2 | Propelente 2 agotado |
-| Apogeo | v cambia de signo de + a − |
+| Apogeo | v cambia de signo de + a − (si ocurre más de una vez, el de mayor altitud) |
 | Impacto | h ≤ 0 tras el despegue |
 
 ## Pérdidas de Δv
@@ -166,6 +166,8 @@ pérdida arrastre   = ∫ D / m dt
 pérdida contrapres.= ∫ (F_vacío − F(p)) / m dt
 pérdida dirección  = ∫ F/m · (1 − cos α) dt   (solo 2D; α = ángulo entre empuje y velocidad)
 ```
+
+En la plataforma la reacción del suelo N anula el empuje que no levanta el cohete. Esa parte, `g − N/m = F/m`, se cuenta como pérdida por gravedad, de modo que la identidad también se cumple antes del despegue.
 
 Identidad de cierre (exacta salvo error numérico, mientras el cohete asciende):
 

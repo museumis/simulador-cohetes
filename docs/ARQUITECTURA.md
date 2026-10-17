@@ -105,12 +105,25 @@ type TipoEvento =
 
 interface Evento { tipo: TipoEvento; t: number; estado: Muestra; }
 
+interface OpcionesSimulacion {
+  dt: number;               // s, 0,01 por defecto
+  duracionMaxima: number;   // s, 7200 por defecto
+  altitudInicial: number;   // m; con 0 y velocidad 0 parte de la plataforma
+  velocidadInicial: number; // m/s
+  gravedad: boolean;        // interruptores para los tests de validación
+  arrastre: boolean;
+  contrapresion: boolean;   // false: Isp de vacío a cualquier altitud
+}
+
+// simular(cohete, opciones?: Partial<OpcionesSimulacion>): ResultadoSimulacion
+// Lanza ErrorEntrada (con la lista de campos fuera de rango) si la entrada no es válida.
+
 interface ResultadoSimulacion {
   muestras: Muestra[];
   eventos: Evento[];
   despega: boolean;
-  resumen: { apogeo: number; velocidadMaxima: number; maxQ: number; deltaVIdeal: number };
-  diagnostico: { metodo: 'rk4' | 'eulerSimplectico'; dt: number; pasos: number; tiempoCalculoMs: number; derivaEnergia: number };
+  resumen: { apogeo: number; velocidadMaxima: number; maxQ: number; deltaVIdeal: number }; // velocidadMaxima = máx |v|
+  diagnostico: { metodo: 'rk4'; dt: number; pasos: number; tiempoCalculoMs: number; derivaEnergia: number }; // 'eulerSimplectico' en la fase 4
 }
 ```
 

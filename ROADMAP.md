@@ -38,17 +38,17 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 ## Fase 2: simulador 1D vertical
 
-- [ ] Tipos `Cohete`, `Etapa`, `Muestra`, `Evento` y `ResultadoSimulacion` en `src/simulacion/tipos.ts`.
-- [ ] `src/fisica/atmosfera.ts`: densidad, presión, temperatura y velocidad del sonido.
-- [ ] `src/fisica/arrastre.ts`: fuerza de arrastre y presión dinámica.
-- [ ] `src/simulacion/integrador.ts`: RK4 con paso fijo.
-- [ ] `src/simulacion/simular.ts`: bucle principal, cambio de etapa y suelo.
-- [ ] Detección de eventos: despegue, Mach 1, Max-Q, fin de combustión 1, separación, encendido 2, fin de combustión 2, apogeo e impacto.
-- [ ] Ajustar el paso de integración para que los fines de combustión caigan en el instante exacto, y localizar el resto de eventos por interpolación dentro del paso.
-- [ ] Integrar las pérdidas de Δv (gravedad, arrastre, contrapresión) como variables de estado.
-- [ ] Muestreo de salida a 20 Hz más los eventos.
-- [ ] Validar la entrada con mensajes precisos (campo, valor, rango admitido).
-- [ ] Tests de validación ([FISICA.md § Validación](docs/FISICA.md#validación)).
+- [x] Tipos `Cohete`, `Etapa`, `Muestra`, `Evento` y `ResultadoSimulacion` en `src/simulacion/tipos.ts`.
+- [x] `src/fisica/atmosfera.ts`: densidad, presión, temperatura y velocidad del sonido.
+- [x] `src/fisica/arrastre.ts`: fuerza de arrastre y presión dinámica.
+- [x] `src/simulacion/integrador.ts`: RK4 con paso fijo.
+- [x] `src/simulacion/simular.ts`: bucle principal, cambio de etapa y suelo.
+- [x] Detección de eventos: despegue, Mach 1, Max-Q, fin de combustión 1, separación, encendido 2, fin de combustión 2, apogeo e impacto.
+- [x] Ajustar el paso de integración para que los fines de combustión caigan en el instante exacto, y localizar el resto de eventos por interpolación dentro del paso.
+- [x] Integrar las pérdidas de Δv (gravedad, arrastre, contrapresión) como variables de estado.
+- [x] Muestreo de salida a 20 Hz más los eventos.
+- [x] Validar la entrada con mensajes precisos (campo, valor, rango admitido).
+- [x] Tests de validación ([FISICA.md § Validación](docs/FISICA.md#validación)).
 
 **Hecho cuando:** todos los tests de validación pasan y una simulación completa tarda menos de 50 ms.
 
