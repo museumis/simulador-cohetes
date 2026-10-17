@@ -1,7 +1,9 @@
+import type { TipoAtmosfera } from '../fisica/atmosfera';
 import type { ElementosOrbitales } from '../fisica/orbita';
+import type { Tabla } from '../fisica/tabla';
 import type { MetodoIntegracion } from './integrador';
 
-export type { ElementosOrbitales, MetodoIntegracion };
+export type { ElementosOrbitales, MetodoIntegracion, Tabla, TipoAtmosfera };
 
 /** Datos de entrada de una etapa. */
 export interface Etapa {
@@ -12,7 +14,9 @@ export interface Etapa {
   ispVacio: number;       // s
   diametro: number;       // m, para el área frontal
   longitud: number;       // m, solo para el esquema a escala; en la etapa 2 incluye la cofia
-  cd: number;             // coeficiente de arrastre, adimensional
+  cd: number;             // coeficiente de arrastre, adimensional; constante si tablaCd está vacía
+  tablaCd: Tabla;         // (Mach, Cd) con el Mach creciente; vacía: Cd constante
+  regulacion: Tabla;      // (s desde el encendido, nivel en (0, 1]) por tramos; vacía: empuje nominal
 }
 
 /** Cohete de dos etapas. */
@@ -23,6 +27,9 @@ export interface Cohete {
   pausaSeparacion: number; // s, entre el fin de la etapa 1 y el encendido de la 2
   velocidadManiobra: number; // m/s, solo 2D: |v| al empezar la maniobra de inclinación
   anguloManiobra: number;    // °, solo 2D: inclinación del empuje respecto a la vertical local en la maniobra
+  aceleracionMaxima: number; // m/s², límite de F/m con regulación automática; 0: sin límite
+  latitudLanzamiento: number; // °, solo 2D con rotación terrestre; positiva al norte
+  azimutLanzamiento: number;  // °, solo 2D con rotación terrestre; desde el norte hacia el este (90: este)
 }
 
 /** Modelo de vuelo: vertical (1D) o en el plano de la trayectoria (2D). */
@@ -32,10 +39,13 @@ export type ModeloVuelo = '1D' | '2D';
 export interface OpcionesSimulacion {
   modelo: ModeloVuelo;
   metodo: MetodoIntegracion;
-  dt: number;               // s, paso de integración
+  dt: number;               // s, paso de integración; en los métodos adaptativos, el paso inicial
+  tolerancia: number;       // relativa, solo en los métodos adaptativos
+  atmosfera: TipoAtmosfera;
+  rotacion: boolean;        // solo 2D: rotación terrestre (velocidad inicial y viento de la atmósfera)
   duracionMaxima: number;   // s, límite de seguridad del vuelo simulado
   altitudInicial: number;   // m; con 0 y velocidad 0 el cohete parte de la plataforma
-  velocidadInicial: number; // m/s, vertical
+  velocidadInicial: number; // m/s, vertical respecto al suelo
   gravedad: boolean;        // false: g = 0
   arrastre: boolean;        // false: D = 0
   contrapresion: boolean;   // false: Isp y empuje de vacío a cualquier altitud
@@ -55,10 +65,13 @@ export interface Muestra {
   velocidadHorizontal: number; // m/s, componente horizontal local, positiva hacia el alcance creciente
   anguloTrayectoria: number;   // rad, γ: de la horizontal local a la velocidad
   anguloEmpuje: number;        // rad, de la horizontal local al eje del cohete (dirección del empuje)
-  anguloAtaque: number;        // rad, α: de la velocidad al eje del cohete
+  anguloAtaque: number;        // rad, α: de la velocidad respecto al aire al eje del cohete
+  anguloTrayectoriaAire: number; // rad, de la horizontal local a la velocidad respecto al aire
+  velocidadAire: number;   // m/s, |v − ω × r|; igual a |v| sin rotación terrestre
   masa: number;            // kg
   empuje: number;          // N
   caudal: number;          // kg/s
+  regulacion: number;      // nivel de empuje: caudal / caudal nominal; 0 con el motor apagado
   isp: number;             // s, 0 con el motor apagado
   twr: number;             // empuje / peso con la gravedad local
   etapa: 1 | 2;            // etapa inferior acoplada
@@ -70,6 +83,7 @@ export interface Muestra {
   presionDinamica: number; // Pa
   mach: number;
   arrastre: number;        // N, módulo
+  cd: number;              // coeficiente de arrastre aplicado
   gravedad: number;        // m/s², la aplicada en la simulación
   perdidas: {              // acumuladas, m/s
     gravedad: number;
@@ -114,8 +128,12 @@ export interface ResultadoSimulacion {
   diagnostico: {
     modelo: ModeloVuelo;
     metodo: MetodoIntegracion;
-    dt: number;              // s
-    pasos: number;
+    dt: number;              // s; paso inicial en los métodos adaptativos
+    tolerancia: number;      // solo en los métodos adaptativos
+    atmosfera: TipoAtmosfera;
+    rotacion: boolean;       // si se ha aplicado (solo en 2D)
+    pasos: number;           // aceptados
+    pasosRechazados: number; // solo en los métodos adaptativos
     tiempoCalculoMs: number; // ms
     derivaEnergia: number;   // máximo de |ε(t) − ε(0)| relativo, ver simular.ts
   };

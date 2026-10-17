@@ -35,3 +35,15 @@ export const GAMMA_AIRE = 1.4;
 
 /** Constante específica del aire seco (J/(kg·K)): R* / M0 = 8314,32 / 28,9644. US Standard Atmosphere 1976. */
 export const R_AIRE = 287.05;
+
+/** Constante universal de los gases (J/(kmol·K)), valor adoptado por la US Standard Atmosphere 1976. */
+export const R_UNIVERSAL_1976 = 8_314.32;
+
+/** Masa molar del aire al nivel del mar (kg/kmol). US Standard Atmosphere 1976. */
+export const MASA_MOLAR_AIRE_1976 = 28.9644;
+
+/** Radio terrestre para la altitud geopotencial (m). US Standard Atmosphere 1976. */
+export const RADIO_GEOPOTENCIAL_1976 = 6_356_766;
+
+/** Velocidad angular de rotación de la Tierra respecto a las estrellas (rad/s). WGS 84 / IERS. */
+export const OMEGA_TIERRA = 7.292115e-5;

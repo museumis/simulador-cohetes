@@ -550,6 +550,16 @@ table {
   border-style: dashed;
 }
 
+/* Tablas x:y: texto alineado a la izquierda; el título del campo explica el formato. */
+.tabla-parametros input.entrada-tabla {
+  text-align: left;
+}
+
+/* Dato que no interviene con la configuración actual (p. ej. la tolerancia con paso fijo). */
+.tabla-parametros tr.inactivo {
+  color: var(--texto-tenue);
+}
+
 .errores {
   margin: 0 0 0.5rem;
   padding-left: 1.2rem;

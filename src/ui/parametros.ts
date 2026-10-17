@@ -1,11 +1,20 @@
 import { calcularDerivados } from '../analisis/derivados';
 import { copiarCohete, MODELOS } from '../modelos';
-import { buscarCampo, CAMPOS_ETAPA, copiarEntrada, type Entrada } from '../simulacion/campos';
-import { OPCIONES_POR_DEFECTO } from '../simulacion/simular';
-import type { MetodoIntegracion, ModeloVuelo } from '../simulacion/tipos';
-import { METODOS, MODELOS_VUELO, validarCohete, validarOpciones, type ErrorValidacion } from '../simulacion/validacion';
+import {
+  buscarCampo,
+  CAMPOS_ETAPA,
+  CAMPOS_TABLA,
+  copiarEntrada,
+  tablaATexto,
+  textoATabla,
+  type Entrada,
+} from '../simulacion/campos';
+import { esAdaptativo } from '../simulacion/integrador';
+import { OPCIONES_ALTA_FIDELIDAD, OPCIONES_POR_DEFECTO } from '../simulacion/simular';
+import type { MetodoIntegracion, ModeloVuelo, TipoAtmosfera } from '../simulacion/tipos';
+import { ATMOSFERAS, METODOS, MODELOS_VUELO, validarCohete, validarOpciones, type ErrorValidacion } from '../simulacion/validacion';
 import { formatearNumero } from '../util/formato';
-import { NOMBRES_METODO, NOMBRES_MODELO, textoConUnidad, type SistemaUnidades } from './magnitudes';
+import { NOMBRES_ATMOSFERA, NOMBRES_METODO, NOMBRES_MODELO, textoConUnidad, type SistemaUnidades } from './magnitudes';
 
 /** Retardo entre la última edición y el recálculo (ms). */
 const RETARDO_RECALCULO = 250;
@@ -25,16 +34,24 @@ function leerNumero(texto: string): number {
   return limpio === '' ? Number.NaN : Number(limpio);
 }
 
-function entrada(campo: string, valor: number, titulo: string): HTMLInputElement {
+function entrada(campo: string, valor: number | string, titulo: string): HTMLInputElement {
   const e = document.createElement('input');
   e.type = 'text';
-  e.inputMode = 'decimal';
+  e.inputMode = typeof valor === 'number' ? 'decimal' : 'text';
   e.spellcheck = false;
   e.dataset.campo = campo;
   e.value = String(valor);
   e.title = titulo;
   e.setAttribute('aria-label', titulo);
   return e;
+}
+
+function desplegable<T extends string>(campo: string, titulo: string, opciones: readonly T[], nombres: Record<T, string>): HTMLSelectElement {
+  const s = document.createElement('select');
+  s.title = titulo;
+  s.dataset.campo = campo;
+  s.append(...opciones.map((o) => new Option(nombres[o], o)));
+  return s;
 }
 
 function filaTabla(tabla: HTMLTableElement | HTMLTableSectionElement, celdas: (string | Node)[], claseNumero = true): HTMLTableRowElement {
@@ -56,10 +73,11 @@ export function crearParametros(
   contenedor: HTMLElement,
   alCambiar: (entrada: Entrada) => void,
 ): Parametros {
-  // La página se abre en el modelo 2D, con la trayectoria visible.
+  // La página se abre en alta fidelidad: modelo 2D (con la trayectoria visible), US Standard
+  // Atmosphere 1976, rotación terrestre y paso adaptativo.
   let entradaActual: Entrada = {
     cohete: copiarCohete(MODELOS[0]!.cohete),
-    opciones: { ...OPCIONES_POR_DEFECTO, modelo: '2D' },
+    opciones: { ...OPCIONES_POR_DEFECTO, ...OPCIONES_ALTA_FIDELIDAD },
   };
   let sistema: SistemaUnidades = 'si';
   let temporizador: ReturnType<typeof setTimeout> | undefined;
@@ -94,24 +112,26 @@ export function crearParametros(
   const configuracion = document.createElement('div');
   configuracion.className = 'nota';
 
-  const selectorModelo = document.createElement('select');
-  selectorModelo.title = 'Modelo de vuelo';
-  selectorModelo.dataset.campo = 'modelo';
-  selectorModelo.append(...MODELOS_VUELO.map((m) => new Option(NOMBRES_MODELO[m], m)));
-
-  const selectorMetodo = document.createElement('select');
-  selectorMetodo.title = 'Método de integración';
-  selectorMetodo.dataset.campo = 'metodo';
-  selectorMetodo.append(...METODOS.map((m) => new Option(NOMBRES_METODO[m], m)));
+  const selectorModelo = desplegable('modelo', 'Modelo de vuelo', MODELOS_VUELO, NOMBRES_MODELO);
+  const selectorMetodo = desplegable('metodo', 'Método de integración', METODOS, NOMBRES_METODO);
+  const selectorAtmosfera = desplegable('atmosfera', 'Modelo atmosférico', ATMOSFERAS, NOMBRES_ATMOSFERA);
+  const selectorRotacion = desplegable('rotacion', 'Solo 2D: rotación terrestre (velocidad inicial y viento de la atmósfera)', ['si', 'no'], {
+    si: 'sí',
+    no: 'no',
+  });
+  const selectores = [selectorModelo, selectorMetodo, selectorAtmosfera, selectorRotacion];
 
   contenedor.append(titulo, filaModelo, configuracion, tablaEntrada, errores, errorSimulacion, tituloDerivados, tablaDerivados);
 
   const entradas: HTMLInputElement[] = [];
+  const entradasTabla: HTMLInputElement[] = [];
+  let filaTolerancia: HTMLTableRowElement | null = null;
 
   function construirEntrada(): void {
     const { cohete, opciones } = entradaActual;
     tablaEntrada.replaceChildren();
     entradas.length = 0;
+    entradasTabla.length = 0;
     const cab = tablaEntrada.createTHead();
     filaTabla(cab, ['', 'etapa 1', 'etapa 2', 'unidad'], false);
     const cuerpo = tablaEntrada.createTBody();
@@ -121,30 +141,66 @@ export function crearParametros(
       entradas.push(e0, e1);
       filaTabla(cuerpo, [c.nombre, e0, e1, c.unidad || '—'], false);
     }
+    // Tablas por etapa como texto «x:y x:y …».
+    for (const [clave, nombre, unidad, ayuda] of [
+      ['tablaCd', 'Cd(Mach)', 'Mach:Cd', 'puntos Mach:Cd separados por espacios, interpolados linealmente; vacío: Cd constante'],
+      ['regulacion', 'regulación', 's:nivel', 'puntos t:nivel (s desde el encendido, nivel en (0, 1]) por tramos; vacío: empuje nominal'],
+    ] as const) {
+      const celdas = ([0, 1] as const).map((i) => {
+        const campo = CAMPOS_TABLA.find((c) => c.ruta === `etapas[${i}].${clave}`)!;
+        const e = entrada(campo.ruta, tablaATexto(campo.leer(entradaActual)), `${campo.nombre}: ${ayuda}`);
+        e.className = 'entrada-tabla';
+        e.placeholder = '—';
+        entradasTabla.push(e);
+        return e;
+      });
+      filaTabla(cuerpo, [nombre, ...celdas, unidad], false);
+    }
     const carga = entrada('masaCargaUtil', cohete.masaCargaUtil, 'carga útil [kg]');
     const pausa = entrada('pausaSeparacion', cohete.pausaSeparacion, 'pausa entre etapas [s]');
     const vManiobra = entrada('velocidadManiobra', cohete.velocidadManiobra, 'solo 2D: |v| al empezar la maniobra de inclinación [m/s]');
     const aManiobra = entrada('anguloManiobra', cohete.anguloManiobra, 'solo 2D: inclinación del empuje respecto a la vertical local [°]');
-    const dt = entrada('dt', opciones.dt, 'paso de integración [s]');
-    entradas.push(carga, pausa, vManiobra, aManiobra, dt);
+    const aMax = entrada('aceleracionMaxima', cohete.aceleracionMaxima, 'límite de F/m con regulación automática del empuje [m/s²]; 0: sin límite');
+    const latitud = entrada('latitudLanzamiento', cohete.latitudLanzamiento, 'solo 2D con rotación: latitud de lanzamiento, positiva al norte [°]');
+    const azimut = entrada('azimutLanzamiento', cohete.azimutLanzamiento, 'solo 2D con rotación: azimut de lanzamiento desde el norte hacia el este [°]');
+    const dt = entrada('dt', opciones.dt, 'paso de integración; en el método adaptativo, paso inicial [s]');
+    const tolerancia = entrada('tolerancia', opciones.tolerancia, 'solo paso adaptativo: error local admitido por paso, relativo');
+    entradas.push(carga, pausa, aMax, vManiobra, aManiobra, latitud, azimut, dt, tolerancia);
     filaTabla(cuerpo, ['carga útil', carga, '', 'kg'], false);
     filaTabla(cuerpo, ['pausa entre etapas', pausa, '', 's'], false);
+    filaTabla(cuerpo, ['aceleración máx. (0: sin)', aMax, '', 'm/s²'], false);
     filaTabla(cuerpo, ['modelo de vuelo', selectorModelo, '', ''], false);
     filaTabla(cuerpo, ['v maniobra (2D)', vManiobra, '', 'm/s'], false);
     filaTabla(cuerpo, ['ángulo maniobra (2D)', aManiobra, '', '°'], false);
+    filaTabla(cuerpo, ['atmósfera', selectorAtmosfera, '', ''], false);
+    filaTabla(cuerpo, ['rotación terrestre (2D)', selectorRotacion, '', ''], false);
+    filaTabla(cuerpo, ['latitud (2D)', latitud, '', '°'], false);
+    filaTabla(cuerpo, ['azimut (2D)', azimut, '', '°'], false);
     filaTabla(cuerpo, ['método de integración', selectorMetodo, '', ''], false);
     filaTabla(cuerpo, ['paso de integración dt', dt, '', 's'], false);
+    filaTolerancia = filaTabla(cuerpo, ['tolerancia', tolerancia, '', '—'], false);
     selectorModelo.value = opciones.modelo;
     selectorMetodo.value = opciones.metodo;
+    selectorAtmosfera.value = opciones.atmosfera;
+    selectorRotacion.value = opciones.rotacion ? 'si' : 'no';
     pintarConfiguracion();
     for (const e of entradas) e.addEventListener('input', () => alEditar(e));
+    for (const e of entradasTabla) e.addEventListener('input', () => alEditarTabla(e));
   }
 
   function pintarConfiguracion(): void {
-    const plano = entradaActual.opciones.modelo === '2D';
-    configuracion.textContent = plano
-      ? 'modelo 2D: gravedad vectorial y programa de inclinación (subida vertical, maniobra, giro gravitatorio) · atmósfera exponencial · integrador de paso fijo'
-      : 'modelo 1D vertical (la maniobra no interviene) · atmósfera exponencial · integrador de paso fijo';
+    const o = entradaActual.opciones;
+    const plano = o.modelo === '2D';
+    const adaptativo = esAdaptativo(o.metodo);
+    configuracion.textContent = [
+      plano
+        ? 'modelo 2D: gravedad vectorial y programa de inclinación (subida vertical, maniobra, giro gravitatorio)'
+        : 'modelo 1D vertical (la maniobra, la rotación y el lugar de lanzamiento no intervienen)',
+      `atmósfera ${NOMBRES_ATMOSFERA[o.atmosfera]}`,
+      plano && o.rotacion ? 'con rotación terrestre' : 'sin rotación terrestre',
+      adaptativo ? 'paso adaptativo (dt es el paso inicial)' : 'paso fijo (la tolerancia no interviene)',
+    ].join(' · ');
+    filaTolerancia?.classList.toggle('inactivo', !adaptativo);
   }
 
   function aplicar(campo: string, valor: number): void {
@@ -157,7 +213,7 @@ export function crearParametros(
 
   function pintarErrores(lista: ErrorValidacion[]): void {
     const porCampo = new Map(lista.map((e) => [e.campo, e]));
-    for (const e of [...entradas, selectorModelo, selectorMetodo]) {
+    for (const e of [...entradas, ...entradasTabla, ...selectores]) {
       const error = porCampo.get(e.dataset.campo ?? '');
       e.classList.toggle('invalido', error !== undefined);
       e.setAttribute('aria-invalid', String(error !== undefined));
@@ -199,6 +255,13 @@ export function crearParametros(
     revisar(true);
   }
 
+  function alEditarTabla(e: HTMLInputElement): void {
+    const campo = CAMPOS_TABLA.find((c) => c.ruta === e.dataset.campo);
+    if (!campo) return;
+    entradaActual = campo.escribir(entradaActual, textoATabla(e.value));
+    revisar(true);
+  }
+
   /** Valida, pinta y, si todo es válido, programa el recálculo. */
   function revisar(conRetardo: boolean): void {
     const lista = validar();
@@ -227,6 +290,19 @@ export function crearParametros(
 
   selectorMetodo.addEventListener('change', () => {
     entradaActual = { ...entradaActual, opciones: { ...entradaActual.opciones, metodo: selectorMetodo.value as MetodoIntegracion } };
+    pintarConfiguracion();
+    revisar(false);
+  });
+
+  selectorAtmosfera.addEventListener('change', () => {
+    entradaActual = { ...entradaActual, opciones: { ...entradaActual.opciones, atmosfera: selectorAtmosfera.value as TipoAtmosfera } };
+    pintarConfiguracion();
+    revisar(false);
+  });
+
+  selectorRotacion.addEventListener('change', () => {
+    entradaActual = { ...entradaActual, opciones: { ...entradaActual.opciones, rotacion: selectorRotacion.value === 'si' } };
+    pintarConfiguracion();
     revisar(false);
   });
 

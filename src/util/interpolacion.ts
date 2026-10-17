@@ -25,7 +25,7 @@ const linealExtendida = (a: number, b: number, f: number): number =>
 
 /**
  * Interpolación lineal entre dos muestras consecutivas. Las magnitudes discretas
- * (etapa, motor, caudal) se toman de la anterior. Los ángulos no dan la vuelta entre dos
+ * (etapa, motor) se toman de la anterior. Los ángulos no dan la vuelta entre dos
  * muestras: γ y el eje están en [−90°, 270°) y cambian poco en 0,05 s.
  */
 export function interpolarMuestras(a: Muestra, b: Muestra, tiempo: number): Muestra {
@@ -45,9 +45,13 @@ export function interpolarMuestras(a: Muestra, b: Muestra, tiempo: number): Mues
     anguloTrayectoria: lineal(a.anguloTrayectoria, b.anguloTrayectoria, f),
     anguloEmpuje: lineal(a.anguloEmpuje, b.anguloEmpuje, f),
     anguloAtaque: lineal(a.anguloAtaque, b.anguloAtaque, f),
+    anguloTrayectoriaAire: lineal(a.anguloTrayectoriaAire, b.anguloTrayectoriaAire, f),
+    velocidadAire: lineal(a.velocidadAire, b.velocidadAire, f),
     masa: lineal(a.masa, b.masa, f),
     empuje: lineal(a.empuje, b.empuje, f),
-    caudal: a.caudal,
+    // Con el límite de aceleración el caudal varía de forma continua; sus saltos tienen dos muestras.
+    caudal: lineal(a.caudal, b.caudal, f),
+    regulacion: lineal(a.regulacion, b.regulacion, f),
     isp: lineal(a.isp, b.isp, f),
     twr: lineal(a.twr, b.twr, f),
     etapa: a.etapa,
@@ -59,6 +63,7 @@ export function interpolarMuestras(a: Muestra, b: Muestra, tiempo: number): Mues
     presionDinamica: lineal(a.presionDinamica, b.presionDinamica, f),
     mach: lineal(a.mach, b.mach, f),
     arrastre: lineal(a.arrastre, b.arrastre, f),
+    cd: lineal(a.cd, b.cd, f),
     gravedad: lineal(a.gravedad, b.gravedad, f),
     perdidas: {
       gravedad: lineal(a.perdidas.gravedad, b.perdidas.gravedad, f),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  crearDatosAtmosfera,
   datosAtmosfera,
   densidad,
   derivadaDensidad,
@@ -51,13 +52,15 @@ describe('atmósfera', () => {
   });
 
   it('datosAtmosfera coincide con las funciones sueltas', () => {
-    const salida = { densidad: 0, presion: 0, derivadaDensidad: 0 };
+    const salida = crearDatosAtmosfera();
     for (const h of [0, 12_345, 80_000]) {
       const d = datosAtmosfera(h, salida);
       expect(d).toBe(salida);
       esperarCercano(d.densidad, densidad(h));
       esperarCercano(d.presion, presion(h));
       esperarCercano(d.derivadaDensidad, derivadaDensidad(h));
+      esperarCercano(d.temperatura, temperatura(h));
+      esperarCercano(d.velocidadSonido, velocidadSonido(h));
     }
   });
 });

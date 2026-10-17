@@ -1,7 +1,7 @@
 import { PRESION_NIVEL_MAR } from '../fisica/constantes';
 import { gravedad } from '../fisica/gravedad';
 import { fraccionCargaUtil, masaInicial, masasCombustion } from '../fisica/masas';
-import { caudalMasico, empujeSegunPresion, tiempoCombustion } from '../fisica/motor';
+import { caudalMasico, empujeSegunPresion, tiempoCombustionRegulada } from '../fisica/motor';
 import { deltaVEtapas } from '../fisica/tsiolkovski';
 import type { Cohete } from '../simulacion/tipos';
 
@@ -9,8 +9,8 @@ import type { Cohete } from '../simulacion/tipos';
 export interface DerivadosEtapa {
   masaInicial: number;      // kg, al empezar su combustión
   masaFinal: number;        // kg, al terminarla
-  caudal: number;           // kg/s
-  tiempoCombustion: number; // s
+  caudal: number;           // kg/s, nominal (100 %)
+  tiempoCombustion: number; // s, con el perfil de regulación y sin el límite de aceleración
   twrInicial: number;       // al encenderse, con g en la superficie: etapa 1 con empuje a nivel del mar, etapa 2 con empuje de vacío
   deltaVIdeal: number;      // m/s, Tsiolkovski con Isp de vacío
 }
@@ -36,7 +36,7 @@ export function calcularDerivados(cohete: Cohete): Derivados {
       masaInicial: masas[i].inicial,
       masaFinal: masas[i].final,
       caudal: caudalMasico(e),
-      tiempoCombustion: tiempoCombustion(e, e.masaPropelente),
+      tiempoCombustion: tiempoCombustionRegulada(e, e.masaPropelente, e.regulacion),
       twrInicial: empuje / (masas[i].inicial * g),
       deltaVIdeal: deltaV,
     };

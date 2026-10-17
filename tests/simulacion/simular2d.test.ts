@@ -3,7 +3,7 @@ import { RADIO_TIERRA } from '../../src/fisica/constantes';
 import { ALTITUD_PERIGEO_ORBITA } from '../../src/fisica/orbita';
 import { ELECTRON } from '../../src/modelos/electron';
 import { FALCON_9 } from '../../src/modelos/falcon9';
-import { DURACION_ORBITAL, simular } from '../../src/simulacion/simular';
+import { DURACION_ORBITAL, OPCIONES_ALTA_FIDELIDAD, simular } from '../../src/simulacion/simular';
 import type { Evento, Muestra, ResultadoSimulacion, TipoEvento } from '../../src/simulacion/tipos';
 import { esperarCercano } from '../ayudas';
 import { COHETE_PRUEBA } from './cohetes';
@@ -16,7 +16,10 @@ function evento(r: ResultadoSimulacion, tipo: TipoEvento): Evento {
 
 const GRADO = Math.PI / 180;
 
-const falcon = simular(FALCON_9, { modelo: '2D' });
+/** Sin rotación: el programa de inclinación se comprueba con la geometría exacta (x = 0 en la subida). */
+const falcon = simular(FALCON_9, { modelo: '2D', atmosfera: 'estandar1976' });
+/** Configuración de la interfaz con paso fijo: llega a órbita y simula DURACION_ORBITAL. */
+const falconOrbita = simular(FALCON_9, { ...OPCIONES_ALTA_FIDELIDAD, metodo: 'rk4' });
 const sondeo = simular(COHETE_PRUEBA, { modelo: '2D' });
 
 /** Comprueba la identidad del presupuesto de Δv en cada muestra (validación 7). */
@@ -31,11 +34,12 @@ function esperarCierre(muestras: readonly Muestra[], tolerancia = 1e-6): void {
 
 describe('modelo 2D: programa de inclinación', () => {
   it('eventos del ascenso a órbita en orden y sin impacto', () => {
-    const tipos = falcon.eventos.map((e) => e.tipo);
+    expect(falcon.eventos.map((e) => e.tipo).slice(0, 3)).toEqual(['despegue', 'inicioManiobra', 'finManiobra']);
+    const tipos = falconOrbita.eventos.map((e) => e.tipo);
     expect(tipos.slice(0, 3)).toEqual(['despegue', 'inicioManiobra', 'finManiobra']);
     expect(tipos).toContain('orbita');
     expect(tipos).not.toContain('impacto');
-    expect(evento(falcon, 'orbita').t).toBeLessThanOrEqual(evento(falcon, 'finCombustion2').t);
+    expect(evento(falconOrbita, 'orbita').t).toBeLessThanOrEqual(evento(falconOrbita, 'finCombustion2').t);
     expect(falcon.diagnostico.modelo).toBe('2D');
   });
 
@@ -85,24 +89,25 @@ describe('modelo 2D: programa de inclinación', () => {
 
 describe('modelo 2D: órbita', () => {
   it('el modelo de referencia llega a órbita con perigeo sobre 100 km', () => {
-    const fin = evento(falcon, 'finCombustion2').estado;
+    const fin = evento(falconOrbita, 'finCombustion2').estado;
     expect(fin.orbita.energia).toBeLessThan(0);
     expect(fin.orbita.altitudPerigeo).toBeGreaterThan(ALTITUD_PERIGEO_ORBITA);
     expect(fin.orbita.excentricidad).toBeLessThan(0.05);
-    const orbita = evento(falcon, 'orbita').estado;
+    const orbita = evento(falconOrbita, 'orbita').estado;
     esperarCercano(orbita.orbita.altitudPerigeo, ALTITUD_PERIGEO_ORBITA, 1e-6);
-    expect(simular(ELECTRON, { modelo: '2D' }).eventos.map((e) => e.tipo)).toContain('orbita');
+    expect(simular(ELECTRON, { ...OPCIONES_ALTA_FIDELIDAD, metodo: 'rk4' }).eventos.map((e) => e.tipo)).toContain('orbita');
   });
 
   it('en órbita se simula DURACION_ORBITAL tras el fin de la combustión 2', () => {
-    esperarCercano(falcon.muestras.at(-1)!.t, evento(falcon, 'finCombustion2').t + DURACION_ORBITAL);
+    esperarCercano(falconOrbita.muestras.at(-1)!.t, evento(falconOrbita, 'finCombustion2').t + DURACION_ORBITAL);
   });
 
   // Validación 8: fuera de la atmósfera y sin motor, ε y h se conservan, y con ellas apogeo y perigeo.
   it('validación 8: elementos orbitales constantes en vuelo balístico', () => {
-    const fin = evento(falcon, 'finCombustion2');
-    const balisticas = falcon.muestras.filter((m) => m.t > fin.t);
-    expect(balisticas.length).toBeGreaterThan(10_000);
+    const fin = evento(falconOrbita, 'finCombustion2');
+    const balisticas = falconOrbita.muestras.filter((m) => m.t > fin.t);
+    // Vuelo orbital muestreado a 1 Hz.
+    expect(balisticas.length).toBeGreaterThanOrEqual(DURACION_ORBITAL);
     const o = fin.estado.orbita;
     for (const m of balisticas) {
       esperarCercano(m.orbita.energia, o.energia, 1e-9);
@@ -110,7 +115,7 @@ describe('modelo 2D: órbita', () => {
       esperarCercano(m.orbita.altitudPerigeo, o.altitudPerigeo, 1e-6);
       esperarCercano(m.orbita.altitudApogeo, o.altitudApogeo, 1e-6);
     }
-    expect(falcon.diagnostico.derivaEnergia).toBeLessThan(1e-9);
+    expect(falconOrbita.diagnostico.derivaEnergia).toBeLessThan(1e-9);
   });
 
   it('un cohete de sondeo hace un vuelo suborbital y cae lejos de la plataforma', () => {
@@ -128,6 +133,7 @@ describe('modelo 2D: validación', () => {
   // porque la pérdida por gravedad es ∫ g · sin γ dt.
   it('7: cierre del presupuesto de Δv en todo el vuelo', () => {
     esperarCierre(falcon.muestras);
+    esperarCierre(falconOrbita.muestras);
     esperarCierre(sondeo.muestras);
     // Con Euler simpléctico |v| no se integra exactamente (no es lineal en vx, vy): el cierre es O(dt).
     esperarCierre(simular(COHETE_PRUEBA, { modelo: '2D', metodo: 'eulerSimplectico' }).muestras, 1e-4);

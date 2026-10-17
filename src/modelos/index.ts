@@ -1,4 +1,5 @@
 import type { Cohete } from '../simulacion/tipos';
+import { copiarEtapa } from '../simulacion/campos';
 import { ELECTRON } from './electron';
 import { FALCON_9 } from './falcon9';
 import { COHETE_PRUEBA } from './prueba';
@@ -17,5 +18,5 @@ export const MODELOS: readonly Modelo[] = [
 
 /** Copia profunda de un cohete, para editarla sin tocar el modelo. */
 export function copiarCohete(cohete: Cohete): Cohete {
-  return { ...cohete, etapas: [{ ...cohete.etapas[0] }, { ...cohete.etapas[1] }] };
+  return { ...cohete, etapas: [copiarEtapa(cohete.etapas[0]), copiarEtapa(cohete.etapas[1])] };
 }

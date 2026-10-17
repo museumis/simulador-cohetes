@@ -1,7 +1,14 @@
-import type { Cohete, MetodoIntegracion, ModeloVuelo, OpcionesSimulacion } from './tipos';
+import type { Cohete, MetodoIntegracion, ModeloVuelo, OpcionesSimulacion, Tabla, TipoAtmosfera } from './tipos';
 
 /** Métodos de integración admitidos. */
-export const METODOS: readonly MetodoIntegracion[] = ['rk4', 'eulerSimplectico'];
+export const METODOS: readonly MetodoIntegracion[] = ['rk4', 'eulerSimplectico', 'dormandPrince'];
+
+/** Modelos atmosféricos admitidos. */
+export const ATMOSFERAS: readonly TipoAtmosfera[] = ['exponencial', 'estandar1976'];
+
+/** Tolerancia admitida en los métodos adaptativos (relativa). */
+export const TOLERANCIA_MINIMA = 1e-13;
+export const TOLERANCIA_MAXIMA = 1e-3;
 
 /** Modelos de vuelo admitidos. */
 export const MODELOS_VUELO: readonly ModeloVuelo[] = ['1D', '2D'];
@@ -74,6 +81,38 @@ function comprobarOpcion(errores: ErrorValidacion[], campo: string, valor: unkno
   errores.push({ campo, valor, rango, mensaje: `${campo} = ${String(valor)}: no es ninguno de los admitidos ${rango}` });
 }
 
+/**
+ * Comprueba una tabla (x, y): x finito, dentro de su rango y estrictamente creciente; y dentro de
+ * su rango. El error se asigna a la tabla entera y el mensaje indica el punto.
+ */
+function comprobarTabla(
+  errores: ErrorValidacion[],
+  campo: string,
+  tabla: Tabla,
+  x: { nombre: string; limites: Limites },
+  y: { nombre: string; limites: Limites },
+): void {
+  const errorPunto = (i: number, detalle: string): void => {
+    errores.push({ campo, valor: tabla, rango: '', mensaje: `${campo}, punto ${i + 1}: ${detalle}` });
+  };
+  if (!Array.isArray(tabla)) {
+    errores.push({ campo, valor: tabla, rango: '', mensaje: `${campo}: se esperaba una lista de puntos` });
+    return;
+  }
+  for (let i = 0; i < tabla.length; i++) {
+    const [px, py] = tabla[i]!;
+    for (const [nombre, valor, l] of [
+      [x.nombre, px, x.limites],
+      [y.nombre, py, y.limites],
+    ] as const) {
+      const sub: ErrorValidacion[] = [];
+      comprobar(sub, nombre, valor, l);
+      if (sub.length > 0) errorPunto(i, sub[0]!.mensaje);
+    }
+    if (i > 0 && !(px > tabla[i - 1]![0])) errorPunto(i, `${x.nombre} debe ser mayor que en el punto anterior`);
+  }
+}
+
 const positivo = (unidad: string): Limites => ({ min: 0, max: Infinity, minIncluido: false, maxIncluido: false, unidad });
 const noNegativo = (unidad: string): Limites => ({ min: 0, max: Infinity, minIncluido: true, maxIncluido: false, unidad });
 
@@ -98,6 +137,20 @@ export function validarCohete(cohete: Cohete): ErrorValidacion[] {
     comprobar(errores, `${p}.diametro`, etapa.diametro, positivo('m'));
     comprobar(errores, `${p}.longitud`, etapa.longitud, positivo('m'));
     comprobar(errores, `${p}.cd`, etapa.cd, noNegativo(''));
+    comprobarTabla(
+      errores,
+      `${p}.tablaCd`,
+      etapa.tablaCd,
+      { nombre: 'Mach', limites: noNegativo('') },
+      { nombre: 'Cd', limites: noNegativo('') },
+    );
+    comprobarTabla(
+      errores,
+      `${p}.regulacion`,
+      etapa.regulacion,
+      { nombre: 't', limites: noNegativo('s') },
+      { nombre: 'nivel', limites: { min: 0, max: 1, minIncluido: false, maxIncluido: true, unidad: '' } },
+    );
   });
   comprobar(errores, 'masaCargaUtil', cohete.masaCargaUtil, noNegativo('kg'));
   comprobar(errores, 'pausaSeparacion', cohete.pausaSeparacion, noNegativo('s'));
@@ -109,6 +162,21 @@ export function validarCohete(cohete: Cohete): ErrorValidacion[] {
     maxIncluido: true,
     unidad: '°',
   });
+  comprobar(errores, 'aceleracionMaxima', cohete.aceleracionMaxima, { ...noNegativo('m/s²'), nota: '0: sin límite' });
+  comprobar(errores, 'latitudLanzamiento', cohete.latitudLanzamiento, {
+    min: -90,
+    max: 90,
+    minIncluido: true,
+    maxIncluido: true,
+    unidad: '°',
+  });
+  comprobar(errores, 'azimutLanzamiento', cohete.azimutLanzamiento, {
+    min: 0,
+    max: 360,
+    minIncluido: true,
+    maxIncluido: false,
+    unidad: '°',
+  });
   return errores;
 }
 
@@ -117,6 +185,14 @@ export function validarOpciones(opciones: OpcionesSimulacion): ErrorValidacion[]
   const errores: ErrorValidacion[] = [];
   comprobarOpcion(errores, 'modelo', opciones.modelo, MODELOS_VUELO);
   comprobarOpcion(errores, 'metodo', opciones.metodo, METODOS);
+  comprobarOpcion(errores, 'atmosfera', opciones.atmosfera, ATMOSFERAS);
+  comprobar(errores, 'tolerancia', opciones.tolerancia, {
+    min: TOLERANCIA_MINIMA,
+    max: TOLERANCIA_MAXIMA,
+    minIncluido: true,
+    maxIncluido: true,
+    unidad: '',
+  });
   comprobar(errores, 'dt', opciones.dt, {
     min: DT_MINIMO,
     max: DT_MAXIMO,

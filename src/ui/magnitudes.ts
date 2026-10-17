@@ -1,5 +1,5 @@
 import { G0 } from '../fisica/constantes';
-import type { MetodoIntegracion, ModeloVuelo, Muestra, TipoEvento } from '../simulacion/tipos';
+import type { MetodoIntegracion, ModeloVuelo, Muestra, TipoAtmosfera, TipoEvento } from '../simulacion/tipos';
 import { formatearNumero } from '../util/formato';
 
 /**
@@ -41,10 +41,13 @@ export const MAGNITUDES: readonly Magnitud[] = [
   { id: 'vHorizontal', simbolo: 'v_h', nombre: 'velocidad horizontal', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidadHorizontal, solo2D: true },
   { id: 'gamma', simbolo: 'γ', nombre: 'ángulo de trayectoria sobre la horizontal', unidad: 'rad', practica: grados, cifras: 4, valor: (m) => m.anguloTrayectoria, solo2D: true },
   { id: 'eje', simbolo: 'θ', nombre: 'ángulo del empuje (eje) sobre la horizontal', unidad: 'rad', practica: grados, cifras: 4, valor: (m) => m.anguloEmpuje, solo2D: true },
-  { id: 'ataque', simbolo: 'α', nombre: 'ángulo de ataque: del vector velocidad al eje', unidad: 'rad', practica: grados, cifras: 3, valor: (m) => m.anguloAtaque, solo2D: true },
+  { id: 'ataque', simbolo: 'α', nombre: 'ángulo de ataque: de la velocidad respecto al aire al eje', unidad: 'rad', practica: grados, cifras: 3, valor: (m) => m.anguloAtaque, solo2D: true },
+  { id: 'vAire', simbolo: 'v_aire', nombre: 'velocidad respecto al aire (con rotación terrestre)', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidadAire, solo2D: true },
+  { id: 'gammaAire', simbolo: 'γ_aire', nombre: 'ángulo de la velocidad respecto al aire sobre la horizontal', unidad: 'rad', practica: grados, cifras: 4, valor: (m) => m.anguloTrayectoriaAire, solo2D: true },
   { id: 'masa', simbolo: 'm', nombre: 'masa', unidad: 'kg', cifras: 6, valor: (m) => m.masa },
   { id: 'empuje', simbolo: 'F', nombre: 'empuje', unidad: 'N', practica: kN, cifras: 4, valor: (m) => m.empuje },
   { id: 'caudal', simbolo: 'ṁ', nombre: 'caudal másico', unidad: 'kg/s', cifras: 4, valor: (m) => m.caudal },
+  { id: 'regulacion', simbolo: 'nivel', nombre: 'nivel de empuje: caudal / caudal nominal', unidad: '', cifras: 3, valor: (m) => m.regulacion },
   { id: 'isp', simbolo: 'Isp', nombre: 'impulso específico', unidad: 's', cifras: 4, valor: (m) => m.isp },
   { id: 'twr', simbolo: 'TWR', nombre: 'empuje / peso', unidad: '', cifras: 3, valor: (m) => m.twr },
   { id: 'densidad', simbolo: 'ρ', nombre: 'densidad', unidad: 'kg/m³', cifras: 4, valor: (m) => m.densidad },
@@ -54,6 +57,7 @@ export const MAGNITUDES: readonly Magnitud[] = [
   { id: 'mach', simbolo: 'Mach', nombre: 'número de Mach', unidad: '', cifras: 3, valor: (m) => m.mach },
   { id: 'q', simbolo: 'q', nombre: 'presión dinámica', unidad: 'Pa', practica: kPa, cifras: 4, valor: (m) => m.presionDinamica },
   { id: 'arrastre', simbolo: 'D', nombre: 'arrastre', unidad: 'N', practica: kN, cifras: 4, valor: (m) => m.arrastre },
+  { id: 'cd', simbolo: 'Cd', nombre: 'coeficiente de arrastre aplicado', unidad: '', cifras: 3, valor: (m) => m.cd },
   { id: 'gravedad', simbolo: 'g', nombre: 'gravedad local', unidad: 'm/s²', cifras: 5, valor: (m) => m.gravedad },
   { id: 'dvIdeal', simbolo: 'Δv id', nombre: 'Δv ideal acumulada', unidad: 'm/s', cifras: 5, valor: (m) => m.deltaVIdeal },
   { id: 'perdGrav', simbolo: 'Δv g', nombre: 'pérdida por gravedad', unidad: 'm/s', cifras: 5, valor: (m) => m.perdidas.gravedad },
@@ -72,6 +76,17 @@ export const MAGNITUDES: readonly Magnitud[] = [
 export function magnitudesDelModelo(modelo: ModeloVuelo): Magnitud[] {
   return MAGNITUDES.filter((m) => modelo === '2D' || !m.solo2D);
 }
+
+export const NOMBRES_ATMOSFERA: Record<TipoAtmosfera, string> = {
+  exponencial: 'exponencial',
+  estandar1976: 'US Standard 1976',
+};
+
+/** Abreviatura de la atmósfera en la cabecera. */
+export const ABREVIATURAS_ATMOSFERA: Record<TipoAtmosfera, string> = {
+  exponencial: 'exp',
+  estandar1976: 'US76',
+};
 
 export const NOMBRES_MODELO: Record<ModeloVuelo, string> = {
   '1D': '1D vertical',
@@ -130,4 +145,5 @@ export const NOMBRES_EVENTOS: Record<TipoEvento, string> = {
 export const NOMBRES_METODO: Record<MetodoIntegracion, string> = {
   rk4: 'RK4',
   eulerSimplectico: 'Euler simpléctico',
+  dormandPrince: 'Dormand–Prince 5(4)',
 };

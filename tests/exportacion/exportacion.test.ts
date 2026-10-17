@@ -4,8 +4,8 @@ import { ErrorFormato, exportarJSON, leerJSON } from '../../src/exportacion/json
 import { graficasSVG } from '../../src/exportacion/svg';
 import { codificarURL, decodificarURL } from '../../src/exportacion/url';
 import { FALCON_9 } from '../../src/modelos/falcon9';
-import type { Entrada } from '../../src/simulacion/campos';
-import { MANIOBRA_POR_DEFECTO, OPCIONES_POR_DEFECTO, simular } from '../../src/simulacion/simular';
+import { tablaATexto, textoATabla, type Entrada } from '../../src/simulacion/campos';
+import { DATOS_COHETE_POR_DEFECTO, OPCIONES_POR_DEFECTO, simular } from '../../src/simulacion/simular';
 import { COHETE_PRUEBA } from '../simulacion/cohetes';
 
 const entrada: Entrada = {
@@ -80,8 +80,8 @@ describe('JSON', () => {
     delete antiguo.cohete.anguloManiobra;
     const leido = leerJSON(JSON.stringify(antiguo));
     expect([leido.cohete.velocidadManiobra, leido.cohete.anguloManiobra]).toEqual([
-      MANIOBRA_POR_DEFECTO.velocidadManiobra,
-      MANIOBRA_POR_DEFECTO.anguloManiobra,
+      DATOS_COHETE_POR_DEFECTO.velocidadManiobra,
+      DATOS_COHETE_POR_DEFECTO.anguloManiobra,
     ]);
   });
 });
@@ -110,6 +110,46 @@ describe('URL', () => {
     const base2D: Entrada = { ...entrada, opciones: { ...entrada.opciones, modelo: '2D' } };
     expect(decodificarURL('v=1&masaCargaUtil=500', base2D)!.opciones.modelo).toBe('1D');
     expect(decodificarURL('v=1&modelo=2D', entrada)!.opciones.modelo).toBe('2D');
+  });
+});
+
+describe('fase 6: tablas, atmósfera y rotación', () => {
+  const completa: Entrada = {
+    cohete: {
+      ...FALCON_9,
+      etapas: [{ ...FALCON_9.etapas[0], regulacion: [[0, 1], [55.5, 0.7], [80, 1]] }, FALCON_9.etapas[1]],
+      aceleracionMaxima: 1 / 3,
+    },
+    opciones: { ...OPCIONES_POR_DEFECTO, modelo: '2D', metodo: 'dormandPrince', tolerancia: 1e-10, atmosfera: 'estandar1976', rotacion: true },
+  };
+
+  it('la URL y el JSON llevan las tablas y las opciones nuevas', () => {
+    expect(decodificarURL(`?${codificarURL(completa)}`, entrada)).toEqual(completa);
+    const texto = exportarJSON(completa, simular(completa.cohete, { ...completa.opciones, duracionMaxima: 100 }));
+    expect(leerJSON(texto)).toEqual(completa);
+    expect(JSON.parse(texto).modelo.atmosfera).toBe('US Standard Atmosphere 1976');
+  });
+
+  it('un enlace o archivo anterior se lee con los modelos anteriores aunque la base sea otra', () => {
+    const base: Entrada = { cohete: FALCON_9, opciones: { ...OPCIONES_POR_DEFECTO, atmosfera: 'estandar1976', rotacion: true } };
+    const leida = decodificarURL('v=1&modelo=2D', base)!;
+    expect([leida.opciones.atmosfera, leida.opciones.rotacion]).toEqual(['exponencial', false]);
+    expect(leida.cohete.etapas[0].tablaCd).toEqual([]);
+    const antiguo = JSON.parse(exportarJSON(entrada, r));
+    delete antiguo.cohete.etapas[0].tablaCd;
+    delete antiguo.cohete.latitudLanzamiento;
+    const leido = leerJSON(JSON.stringify(antiguo));
+    expect(leido.cohete.etapas[0].tablaCd).toEqual([]);
+    expect(leido.cohete.latitudLanzamiento).toBe(DATOS_COHETE_POR_DEFECTO.latitudLanzamiento);
+  });
+
+  it('texto de las tablas: ida y vuelta, coma decimal y puntos ilegibles', () => {
+    const tabla = completa.cohete.etapas[0].regulacion;
+    expect(textoATabla(tablaATexto(tabla))).toEqual(tabla);
+    expect(textoATabla(' 0:0,3 ; 1.1:0.5 ')).toEqual([[0, 0.3], [1.1, 0.5]]);
+    expect(textoATabla('')).toEqual([]);
+    const [punto] = textoATabla('0.5');
+    expect(punto!.every(Number.isNaN)).toBe(true);
   });
 });
 

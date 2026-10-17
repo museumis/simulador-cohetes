@@ -1,8 +1,9 @@
 import { buscarMetrica } from '../analisis/metricas';
 import type { EstimacionError } from '../analisis/richardson';
+import { esAdaptativo } from '../simulacion/integrador';
 import type { ResultadoSimulacion } from '../simulacion/tipos';
 import { formatearFijo, formatearNumero } from '../util/formato';
-import { NOMBRES_METODO } from './magnitudes';
+import { NOMBRES_ATMOSFERA, NOMBRES_METODO } from './magnitudes';
 
 /** Estado de la estimación del error por Richardson, que se calcula en segundo plano. */
 export type EstadoRichardson =
@@ -37,6 +38,13 @@ function cabecera(tabla: HTMLTableElement, textos: readonly string[]): void {
 const conUnidad = (valor: number, cifras: number, unidad: string): string =>
   Number.isFinite(valor) ? `${formatearNumero(valor, cifras)}${unidad ? ` ${unidad}` : ''}` : '—';
 
+/** Método con su paso o su tolerancia, p. ej. «RK4 dt = 1.000e-2 s» o «Dormand–Prince 5(4) tol = 1.0e-9». */
+export function textoMetodo(d: ResultadoSimulacion['diagnostico']): string {
+  return esAdaptativo(d.metodo)
+    ? `${NOMBRES_METODO[d.metodo]} tol = ${formatearNumero(d.tolerancia, 2)}`
+    : `${NOMBRES_METODO[d.metodo]} dt = ${formatearNumero(d.dt, 4)} s`;
+}
+
 /**
  * Diagnóstico numérico: método, dt, pasos, tiempo de cálculo, deriva de energía y estimación
  * del error de cada métrica por extrapolación de Richardson (dt, dt/2 y dt/4). Escribe además
@@ -48,16 +56,14 @@ export function crearDiagnostico(contenedor: HTMLElement, pie: HTMLElement): Pan
   tablaGeneral.className = 'tabla-datos';
   const tituloRichardson = document.createElement('div');
   tituloRichardson.className = 'panel-titulo';
-  tituloRichardson.textContent = 'ERROR ESTIMADO (Richardson con dt, dt/2 y dt/4)';
+  tituloRichardson.textContent = 'ERROR ESTIMADO (Richardson)';
   const estado = document.createElement('div');
   estado.className = 'nota';
   const tablaRichardson = document.createElement('table');
   tablaRichardson.className = 'tabla-datos';
   const nota = document.createElement('div');
   nota.className = 'nota';
-  nota.textContent =
-    'error = x(dt) − x exacto ≈ (x(dt) − x(dt/2))·2ᵖ/(2ᵖ − 1); orden obs. = log₂ de la razón de diferencias ' +
-    'sucesivas («—» si el redondeo domina y el error no se puede resolver).';
+
   contenedor.append(tablaGeneral, tituloRichardson, estado, tablaRichardson, nota);
 
   let resultado: ResultadoSimulacion | null = null;
@@ -68,7 +74,7 @@ export function crearDiagnostico(contenedor: HTMLElement, pie: HTMLElement): Pan
     const d = resultado.diagnostico;
     const partes = [
       `modelo ${d.modelo}`,
-      `${NOMBRES_METODO[d.metodo]} dt = ${formatearNumero(d.dt, 4)} s`,
+      textoMetodo(d),
       `${formatearFijo(d.pasos, 0)} pasos`,
       `${formatearNumero(d.tiempoCalculoMs, 3)} ms`,
       `${formatearFijo(resultado.muestras.length, 0)} muestras`,
@@ -84,11 +90,24 @@ export function crearDiagnostico(contenedor: HTMLElement, pie: HTMLElement): Pan
     tablaGeneral.replaceChildren();
     const cuerpo = tablaGeneral.createTBody();
     fila(cuerpo, ['modelo de vuelo', d.modelo]);
+    fila(cuerpo, ['atmósfera', NOMBRES_ATMOSFERA[d.atmosfera]]);
+    fila(cuerpo, ['rotación terrestre', d.rotacion ? 'sí' : 'no'], 'solo interviene en el modelo 2D');
     fila(cuerpo, ['método', NOMBRES_METODO[d.metodo]]);
-    fila(cuerpo, ['paso dt', `${formatearNumero(d.dt, 4)} s`]);
-    fila(cuerpo, ['pasos', formatearFijo(d.pasos, 0)], 'incluye los pasos acortados en los fines de combustión y en los cambios del programa de inclinación');
+    const adaptativo = esAdaptativo(d.metodo);
+    if (adaptativo) {
+      fila(cuerpo, ['tolerancia', formatearNumero(d.tolerancia, 2)], 'error local admitido en cada paso, relativo a 1 + |y| en cada componente');
+      fila(cuerpo, ['paso inicial dt', `${formatearNumero(d.dt, 4)} s`]);
+    } else {
+      fila(cuerpo, ['paso dt', `${formatearNumero(d.dt, 4)} s`]);
+    }
+    fila(
+      cuerpo,
+      ['pasos', formatearFijo(d.pasos, 0)],
+      'aceptados; incluye los pasos acortados en las discontinuidades (despegue, fines de combustión, regulación, programa de inclinación, nodos de Cd(Mach) y capas de la atmósfera)',
+    );
+    if (adaptativo) fila(cuerpo, ['pasos rechazados', formatearFijo(d.pasosRechazados, 0)], 'error estimado mayor que la tolerancia: se repiten con un paso menor');
     fila(cuerpo, ['tiempo de cálculo', `${formatearNumero(d.tiempoCalculoMs, 3)} ms`]);
-    fila(cuerpo, ['muestras', formatearFijo(r.muestras.length, 0)], '20 Hz más una por evento');
+    fila(cuerpo, ['muestras', formatearFijo(r.muestras.length, 0)], '20 Hz (1 Hz en el vuelo orbital) más una por evento');
     fila(
       cuerpo,
       ['deriva de energía', formatearNumero(d.derivaEnergia, 2)],
@@ -110,13 +129,21 @@ export function crearDiagnostico(contenedor: HTMLElement, pie: HTMLElement): Pan
     }
     const est = e.estimacion;
     if (!est) {
-      estado.textContent = 'no disponible: dt/4 queda por debajo del paso mínimo admitido';
+      estado.textContent = 'no disponible: dt/4 o tol/100 queda por debajo del mínimo admitido';
+      nota.textContent = '';
       return;
     }
-    estado.textContent =
-      `${NOMBRES_METODO[est.metodo]}, orden teórico p = ${est.orden} · ` +
-      `${formatearNumero(est.tiempoCalculoMs, 3)} ms en segundo plano`;
-    cabecera(tablaRichardson, ['métrica', 'x(dt)', 'error est.', 'extrapolado', 'orden obs.']);
+    const h = est.adaptativo ? 'tol' : 'dt';
+    const r = est.razon;
+    estado.textContent = est.adaptativo
+      ? `${NOMBRES_METODO[est.metodo]} con tol, tol/10 y tol/100: error ∝ tolᵖ con p = ${est.orden} · ` +
+        `${formatearNumero(est.tiempoCalculoMs, 3)} ms en segundo plano`
+      : `${NOMBRES_METODO[est.metodo]} con dt, dt/2 y dt/4, orden teórico p = ${est.orden} · ` +
+        `${formatearNumero(est.tiempoCalculoMs, 3)} ms en segundo plano`;
+    nota.textContent =
+      `error = x(${h}) − x exacto ≈ (x(${h}) − x(${h}/${r}))·${r}ᵖ/(${r}ᵖ − 1); orden obs. = log${r === 2 ? '₂' : '₁₀'} de la razón ` +
+      'de diferencias sucesivas («—» si el redondeo domina y el error no se puede resolver).';
+    cabecera(tablaRichardson, ['métrica', `x(${h})`, 'error est.', 'extrapolado', 'orden obs.']);
     const cuerpo = tablaRichardson.createTBody();
     for (const f of est.filas) {
       const m = buscarMetrica(f.metrica);

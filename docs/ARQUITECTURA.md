@@ -25,7 +25,7 @@ simulador-cohetes/
 ├── src/
 │   ├── main.ts               # arranque: conecta parámetros, simulación y reproductor
 │   ├── trabajador.ts         # Web Worker: Richardson y barridos en segundo plano
-│   ├── fisica/               # funciones puras: gravedad, atmósfera, motor, arrastre, Tsiolkovski
+│   ├── fisica/               # funciones puras: gravedad, atmósferas, motor, arrastre, tablas, órbita
 │   ├── simulacion/           # tipos, integradores, bucle de simulación, eventos, campos de entrada
 │   ├── reproduccion/         # reloj de simulación e interpolación entre muestras
 │   ├── render/               # Canvas: esquema a escala (perfil y fuerzas) y trayectoria h(alcance)
@@ -52,7 +52,7 @@ trabajador.ts ──► analisis      (Richardson y barridos en segundo plano)
 - `render/` y `ui/` **solo leen** el estado interpolado del reproductor; nunca calculan física.
 - `analisis/` llama a `simular()` (p. ej. con dt/2 o en un barrido) o a las funciones de `fisica/` (valores derivados de la entrada, sin simular).
 - `exportacion/` genera texto (CSV, JSON, SVG, parámetros de la URL); la descarga y el portapapeles son cosa de `ui/`.
-- `simulacion/campos.ts` describe cada dato numérico de la entrada (ruta, clave en la URL, unidad, lectura y escritura). Lo usan la tabla de parámetros, la URL, la comparación y los barridos, para que ningún dato se quede fuera de alguno de ellos.
+- `simulacion/campos.ts` describe cada dato numérico de la entrada (ruta, clave en la URL, unidad, lectura y escritura) y cada tabla (Cd(Mach) y regulación de cada etapa, con su forma de texto «x:y …»). Lo usan la tabla de parámetros, la URL, la comparación y los barridos (solo los numéricos), para que ningún dato se quede fuera de alguno de ellos.
 - Nada depende de `ui/` salvo `main.ts`.
 
 ## Tipos principales
@@ -66,7 +66,9 @@ interface Etapa {
   ispVacio: number;        // s
   diametro: number;        // m
   longitud: number;        // m, solo para el esquema; en la etapa 2 incluye la cofia
-  cd: number;
+  cd: number;              // constante si tablaCd está vacía
+  tablaCd: Tabla;          // (Mach, Cd); Tabla = readonly (readonly [number, number])[]
+  regulacion: Tabla;       // (s desde el encendido, nivel en (0, 1])
 }
 
 interface Cohete {
@@ -76,6 +78,9 @@ interface Cohete {
   pausaSeparacion: number; // s
   velocidadManiobra: number; // m/s, solo 2D
   anguloManiobra: number;    // °, solo 2D
+  aceleracionMaxima: number; // m/s², límite de F/m; 0: sin límite
+  latitudLanzamiento: number; // °, solo 2D con rotación
+  azimutLanzamiento: number;  // °, solo 2D con rotación
 }
 
 type ModeloVuelo = '1D' | '2D';
@@ -92,10 +97,13 @@ interface Muestra {
   velocidadHorizontal: number; // m/s
   anguloTrayectoria: number;   // rad, γ
   anguloEmpuje: number;        // rad, eje del cohete sobre la horizontal local
-  anguloAtaque: number;        // rad, α
+  anguloAtaque: number;        // rad, α, respecto a la velocidad respecto al aire
+  anguloTrayectoriaAire: number; // rad
+  velocidadAire: number;       // m/s, |v − Ω × r|
   masa: number;            // kg
   empuje: number;          // N
   caudal: number;          // kg/s
+  regulacion: number;      // caudal / caudal nominal
   isp: number;             // s
   twr: number;             // empuje / peso
   etapa: 1 | 2;            // etapa acoplada
@@ -107,6 +115,7 @@ interface Muestra {
   presionDinamica: number; // Pa
   mach: number;
   arrastre: number;        // N
+  cd: number;              // aplicado
   gravedad: number;        // m/s²
   perdidas: {              // acumuladas, m/s
     gravedad: number;
@@ -124,12 +133,16 @@ type TipoEvento =
 
 interface Evento { tipo: TipoEvento; t: number; estado: Muestra; }
 
-type MetodoIntegracion = 'rk4' | 'eulerSimplectico';
+type MetodoIntegracion = 'rk4' | 'eulerSimplectico' | 'dormandPrince';
+type TipoAtmosfera = 'exponencial' | 'estandar1976';
 
 interface OpcionesSimulacion {
   modelo: ModeloVuelo;      // '1D' por defecto
   metodo: MetodoIntegracion; // 'rk4' por defecto
-  dt: number;               // s, 0,01 por defecto
+  dt: number;               // s, 0,01 por defecto; paso inicial con Dormand–Prince
+  tolerancia: number;       // 1e-9 por defecto, solo Dormand–Prince
+  atmosfera: TipoAtmosfera; // 'exponencial' por defecto
+  rotacion: boolean;        // false por defecto, solo 2D
   duracionMaxima: number;   // s, 7200 por defecto
   altitudInicial: number;   // m; con 0 y velocidad 0 parte de la plataforma
   velocidadInicial: number; // m/s
@@ -149,7 +162,10 @@ interface ResultadoSimulacion {
   eventos: Evento[];
   despega: boolean;
   resumen: { apogeo: number; velocidadMaxima: number; maxQ: number; deltaVIdeal: number }; // velocidadMaxima = máx |v|
-  diagnostico: { modelo: ModeloVuelo; metodo: MetodoIntegracion; dt: number; pasos: number; tiempoCalculoMs: number; derivaEnergia: number };
+  diagnostico: {
+    modelo: ModeloVuelo; metodo: MetodoIntegracion; dt: number; tolerancia: number; atmosfera: TipoAtmosfera;
+    rotacion: boolean; pasos: number; pasosRechazados: number; tiempoCalculoMs: number; derivaEnergia: number;
+  };
 }
 ```
 
@@ -175,7 +191,7 @@ Los dos modelos comparten el bucle de `simular()` y el tipo `Muestra`: en 1D las
 ## Análisis
 
 - `analisis/metricas.ts` define los números que resumen un vuelo (apogeo, v al fin de la combustión 2, Max-Q, instantes de los eventos, pérdidas en el apogeo…). Los usan Richardson, la comparación y los barridos.
-- La simulación con la entrada actual se hace en el hilo principal. Lo que repite la simulación varias veces (Richardson con dt/2 y dt/4, barridos de hasta 200 puntos) va a un Web Worker (`trabajador.ts`, cliente en `ui/segundo-plano.ts`): cada petición abre un worker nuevo y una petición nueva cancela la anterior terminando su worker.
+- La simulación con la entrada actual se hace en el hilo principal. Lo que repite la simulación varias veces (Richardson con dt/2 y dt/4, o tol/10 y tol/100 con Dormand–Prince; barridos de hasta 200 puntos) va a un Web Worker (`trabajador.ts`, cliente en `ui/segundo-plano.ts`): cada petición abre un worker nuevo y una petición nueva cancela la anterior terminando su worker.
 - Los barridos simulan con `detenerEnApogeo` y solo ofrecen las métricas que se conocen en el apogeo.
 - Comparar: la simulación actual se fija como referencia (entrada y resultado). Las gráficas la superponen sobre un eje t común (`util/series.ts`, interpolando cada serie en los instantes de la otra) y el panel lista las diferencias actual − referencia.
 - La URL lleva siempre la entrada de la simulación que se ve (`history.replaceState` tras cada cálculo), con los números escritos por `String()`, que en JavaScript da el double exacto.
@@ -187,10 +203,15 @@ Los dos modelos comparten el bucle de `simular()` y el tipo `Muestra`: en 1D las
 | Sin framework de interfaz (TypeScript puro) | La interfaz son paneles de datos; no compensa un framework |
 | Canvas 2D para el esquema | Solo líneas y vectores; no hace falta WebGL |
 | Sin elementos decorativos | Herramienta técnica: todo lo que se ve es un dato, una gráfica o un esquema a escala |
-| Paso fijo RK4 en lugar de paso adaptativo | Simple, determinista y suficientemente preciso con dt = 0,01 s |
-| Simulación principal en el hilo principal | Tarda entre 100 y 400 ms (unos 1,5 µs por paso) y la interfaz necesita el resultado enseguida |
+| RK4 de paso fijo y Dormand–Prince 5(4) adaptativo | RK4 es simple y reproduce los resultados anteriores; Dormand–Prince hace una vuelta orbital completa en unos 700 pasos y es el que usa la interfaz por defecto |
+| Opciones por defecto de `simular()` sin las mejoras de la fase 6 | Un enlace o archivo anterior da el mismo resultado; la interfaz aplica `OPCIONES_ALTA_FIDELIDAD` al abrirse |
+| Fin de combustión y despegue como eventos de estado | Con el límite de aceleración el caudal depende del estado y el instante no se conoce de antemano; un solo mecanismo para todos los casos |
+| Rotación terrestre proyectada en el plano | Conserva la componente de ω normal al plano de la trayectoria; un modelo 3D queda fuera de alcance |
+| Tablas como texto «x:y …» en la interfaz y en la URL | Una celda por tabla y etapa; los números se escriben con String() y se leen exactamente |
+| Simulación principal en el hilo principal | Con Dormand–Prince tarda unos 50 ms; con RK4, entre 100 y 400 ms (unos 3 µs por paso) |
 | Estado plano también en 1D | Un solo bucle, mismos eventos y mismas muestras; el 1D es el caso con el empuje en la vertical local y no cambia ningún resultado anterior |
-| Vuelo orbital limitado a 600 s tras la inserción | Una vuelta completa con paso fijo son ~550 000 pasos (más de 1 s); llegará con el paso adaptativo de la fase 6 |
+| Vuelo orbital: una vuelta con paso adaptativo, 600 s con paso fijo | Una vuelta con paso fijo son ~550 000 pasos (más de 1 s) |
+| Muestreo a 1 Hz en el vuelo orbital | A 20 Hz una vuelta serían 110 000 muestras |
 | Richardson y barridos en un Web Worker | Repiten la simulación hasta cientos de veces; en el hilo principal bloquearían la interfaz durante segundos |
 | SVG generado a mano en lugar de serializar uPlot | uPlot dibuja en canvas; el SVG se construye con los mismos datos, diezmados a unos pocos puntos por píxel |
 | uPlot para las gráficas | Muy ligero y rápido con miles de puntos |

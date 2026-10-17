@@ -57,4 +57,21 @@ describe('estimarError', () => {
   it('no se puede estimar si dt/4 queda por debajo del paso mínimo', () => {
     expect(estimarError(entrada('rk4', 2e-4))).toBeNull();
   });
+
+  it('Dormand–Prince: refina la tolerancia y el error es proporcional a ella', () => {
+    const e = estimarError({
+      cohete: COHETE_PRUEBA,
+      opciones: { ...OPCIONES_POR_DEFECTO, metodo: 'dormandPrince', tolerancia: 1e-6 },
+    })!;
+    expect([e.adaptativo, e.razon, e.orden]).toEqual([true, 10, 1]);
+    const apogeo = e.filas.find((f) => f.metrica === 'apogeo')!;
+    expect(apogeo.ordenObservado).toBeGreaterThan(0.6);
+    expect(apogeo.ordenObservado).toBeLessThan(1.6);
+    const exacto = simular(COHETE_PRUEBA, { metodo: 'dormandPrince', tolerancia: 1e-12 }).resumen.apogeo;
+    const errorReal = apogeo.valores[0] - exacto;
+    expect(Math.abs(apogeo.error - errorReal)).toBeLessThan(0.5 * Math.abs(errorReal));
+    expect(
+      estimarError({ cohete: COHETE_PRUEBA, opciones: { ...OPCIONES_POR_DEFECTO, metodo: 'dormandPrince', tolerancia: 1e-12 } }),
+    ).toBeNull();
+  });
 });

@@ -94,25 +94,29 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 **Hecho cuando:** un modelo de referencia llega a órbita y los elementos orbitales se conservan en vuelo balístico fuera de la atmósfera.
 
-El Falcon 9 (18,5 t, maniobra de 2,6° a 60 m/s) llega a una órbita de unos 345 × 518 km y el Electron (9,5°) a una de unos 170 × 228 km. Tras la inserción se simulan 600 s de vuelo orbital; la vuelta completa queda para el paso adaptativo de la fase 6.
+Con los datos de esta fase (atmósfera exponencial, sin rotación), el Falcon 9 (18,5 t, maniobra de 2,6° a 60 m/s) llegaba a una órbita de unos 345 × 518 km y el Electron (9,5°) a una de unos 170 × 228 km. Los modelos se reajustaron en la fase 6.
 
 ## Fase 6: alta fidelidad
 
-- [ ] Atmósfera US Standard 1976 completa hasta 86 km, con continuación exponencial por encima.
-- [ ] Coeficiente de arrastre según el Mach (tabla interpolada por etapa).
-- [ ] Rotación terrestre y latitud de lanzamiento (velocidad inicial y velocidad relativa al aire).
-- [ ] Perfil de empuje (regulación) por tramos durante la combustión.
-- [ ] Límite de aceleración máxima con regulación automática.
-- [ ] Integrador de paso adaptativo (Dormand–Prince 5(4)) con tolerancia configurable. Con él, simular una vuelta completa en órbita (ahora se limita a 600 s tras la inserción).
-- [ ] Opcional: término J2 de la gravedad terrestre.
+- [x] Atmósfera US Standard 1976 completa hasta 86 km, con continuación exponencial (isoterma) por encima.
+- [x] Coeficiente de arrastre según el Mach (tabla interpolada por etapa).
+- [x] Rotación terrestre y latitud de lanzamiento (velocidad inicial y velocidad relativa al aire), con el azimut de lanzamiento.
+- [x] Perfil de empuje (regulación) por tramos durante la combustión.
+- [x] Límite de aceleración máxima con regulación automática.
+- [x] Integrador de paso adaptativo (Dormand–Prince 5(4)) con tolerancia configurable. Con él, simular una vuelta completa en órbita (con paso fijo se sigue limitando a 600 s tras la inserción).
+- [ ] Opcional: término J2 de la gravedad terrestre. Pendiente: en un modelo plano solo se verían sus componentes en el plano, sin la precesión del nodo, que es su efecto principal.
 
 **Hecho cuando:** cada mejora tiene un test que compara con un valor de referencia publicado.
+
+Referencias de los tests ([FISICA.md § Validación](docs/FISICA.md#validación), 9 a 13): tabla I de la US Standard Atmosphere 1976, velocidad del suelo en Cabo Cañaveral (408 m/s), solución analítica del fin de combustión con aceleración limitada, Tsiolkovski y tercera ley de Kepler. La tabla Cd(Mach) de los modelos reales es una estimación propia (no hay datos publicados); su test comprueba la interpolación y la conservación del orden.
+
+La interfaz se abre en alta fidelidad. Con ella el Falcon 9 (22,8 t, la carga publicada sin recuperación, desde Cabo Cañaveral hacia el este, maniobra de 2,9°) llega a una órbita de unos 292 × 377 km, y el Electron (270 kg, órbita heliosíncrona desde Mahia, 9,25°) a una de unos 225 × 575 km.
 
 ## Fase 7: extras
 
 - [ ] Guardar cohetes propios en `localStorage`.
 - [ ] PWA para funcionar sin conexión.
-- [ ] Web Worker para el cálculo si el modo 2D o los barridos lo hacen lento. (Richardson y los barridos ya van en un worker desde la fase 4; falta la simulación principal.)
+- [ ] Web Worker para el cálculo si el modo 2D o los barridos lo hacen lento. (Richardson y los barridos ya van en un worker desde la fase 4; falta la simulación principal, que con Dormand–Prince tarda unos 50 ms.)
 
 ## Fuera de alcance
 

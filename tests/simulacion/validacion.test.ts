@@ -61,4 +61,22 @@ describe('validación de la entrada', () => {
     expect((error as ErrorEntrada).errores.map((e) => e.campo)).toEqual(['etapas[0].diametro', 'etapas[0].cd', 'dt']);
     expect((error as ErrorEntrada).message).toContain('etapas[0].diametro = 0 m');
   });
+
+  it('tablas: puntos crecientes y dentro de rango, con el punto indicado', () => {
+    expect(validarCohete(conEtapa(0, { tablaCd: [[0, 0.3], [1.2, 0.5]], regulacion: [[0, 1], [40, 0.7]] }))).toEqual([]);
+    const cd = validarCohete(conEtapa(0, { tablaCd: [[0, 0.3], [0, 0.5], [2, -1]] }));
+    expect(cd.map((e) => e.campo)).toEqual(['etapas[0].tablaCd', 'etapas[0].tablaCd']);
+    expect(cd[0]!.mensaje).toContain('punto 2: Mach debe ser mayor que en el punto anterior');
+    expect(cd[1]!.mensaje).toContain('punto 3');
+    const nivel = validarCohete(conEtapa(1, { regulacion: [[0, 1.2]] }));
+    expect(nivel[0]!.campo).toBe('etapas[1].regulacion');
+    expect(validarCohete(conEtapa(1, { regulacion: [[Number.NaN, 0.5]] }))).toHaveLength(1);
+  });
+
+  it('lugar de lanzamiento, límite de aceleración y opciones nuevas', () => {
+    const errores = validarCohete({ ...COHETE_PRUEBA, latitudLanzamiento: 91, azimutLanzamiento: 360, aceleracionMaxima: -1 });
+    expect(errores.map((e) => e.campo)).toEqual(['aceleracionMaxima', 'latitudLanzamiento', 'azimutLanzamiento']);
+    const opciones = validarOpciones({ ...OPCIONES_POR_DEFECTO, atmosfera: 'otra' as never, tolerancia: 1 });
+    expect(opciones.map((e) => e.campo)).toEqual(['atmosfera', 'tolerancia']);
+  });
 });

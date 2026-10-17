@@ -13,7 +13,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ COHETE: prueba-01   MODELO: 1D  ATM: exp  INT: RK4 dt=1.000e-2 s [EXP][PARÁM]│
+│ COHETE: prueba-01  MODELO: 2D  ATM: US76  ROT: sí  INT: DP 5(4) tol=1e-9 [P]│
 ├────────────────────────────────────┬─────────────────────────────────────────┤
 │ TELEMETRÍA            T+ 142.350 s │                                         │
 │ h        48 213.7    m             │   h [km]                                │
@@ -50,7 +50,7 @@ Los valores son solo ilustrativos. El presupuesto de Δv se refiere a lo acumula
 ## Paneles
 
 ### Telemetría
-Todas las variables de estado y derivadas en el instante actual, con su unidad: t, h, v, a (también en g), m, F, ṁ, Isp, TWR, ρ, p, T, velocidad del sonido, Mach, q, etapa y estado del motor. En 2D se añaden x, y, alcance, velocidades vertical y horizontal, ángulo de trayectoria γ, ángulo del eje (empuje) θ, ángulo de ataque α, la pérdida por dirección y los elementos orbitales instantáneos (ε, momento angular, semieje mayor, excentricidad, perigeo y apogeo). En 2D v es el módulo |v| y a es d|v|/dt. Los ángulos se muestran en rad (SI) o en grados (unidades prácticas).
+Todas las variables de estado y derivadas en el instante actual, con su unidad: t, h, v, a (también en g), m, F, ṁ, nivel de empuje (regulación), Isp, TWR, ρ, p, T, velocidad del sonido, Mach, q, D, Cd aplicado, etapa y estado del motor. En 2D se añaden x, y, alcance, velocidades vertical y horizontal, ángulo de trayectoria γ, ángulo del eje (empuje) θ, ángulo de ataque α (respecto al aire), velocidad respecto al aire y su ángulo γ_aire, la pérdida por dirección y los elementos orbitales instantáneos (ε, momento angular, semieje mayor, excentricidad, perigeo y apogeo). En 2D v es el módulo |v| y a es d|v|/dt. Los ángulos se muestran en rad (SI) o en grados (unidades prácticas).
 
 ### Gráficas
 - Gráficas apiladas con un eje de tiempo común y un cursor sincronizado con el reproductor.
@@ -64,7 +64,7 @@ Todas las variables de estado y derivadas en el instante actual, con su unidad: 
 ### Esquema
 - Perfil del cohete en líneas finas y a escala (longitud y diámetro de cada etapa), sin relleno ni color.
 - Vectores de fuerza (empuje, arrastre, peso) con longitud proporcional al módulo y escala indicada en N, en un diagrama de cuerpo libre junto al perfil, con origen común y cada vector en su columna.
-- En 2D: el perfil girado según el eje del cohete sobre la horizontal local, la dirección de la velocidad (longitud fija), cotas de γ (horizontal → velocidad) y α (velocidad → eje) con sus valores en una lista, y el diagrama de cuerpo libre con cada fuerza en su dirección real: F según el eje, W hacia abajo y D opuesta a la velocidad.
+- En 2D: el perfil girado según el eje del cohete sobre la horizontal local, la dirección de la velocidad (longitud fija), cotas de γ (horizontal → velocidad) y α (velocidad respecto al aire → eje) con sus valores en una lista, y el diagrama de cuerpo libre con cada fuerza en su dirección real: F según el eje, W hacia abajo y D opuesta a la velocidad respecto al aire. Con rotación terrestre la velocidad respecto al aire se dibuja aparte, discontinua.
 
 ### Presupuesto de Δv
 Δv ideal menos cada pérdida acumulada hasta el instante actual, con su porcentaje del ideal (ver [FISICA.md § Pérdidas de Δv](FISICA.md#pérdidas-de-δv)), el resultante, la velocidad ganada |v| − |v0| y la diferencia entre ambos como comprobación de cierre (absoluta y relativa al ideal). En 1D, después del apogeo la identidad no se aplica y el cierre se muestra como «no aplicable en el descenso»; en 2D vale en todo el vuelo.
@@ -73,7 +73,7 @@ Todas las variables de estado y derivadas en el instante actual, con su unidad: 
 Lista con el instante exacto (T+ con milisegundos) y el estado completo en ese instante. Al hacer clic, el reproductor salta al evento.
 
 ### Diagnóstico numérico
-Método de integración, dt, número de pasos, tiempo de cálculo, número de muestras y deriva de energía. Debajo, para cada métrica del vuelo, el valor con dt, su error estimado por extrapolación de Richardson, el valor extrapolado y el orden de convergencia observado (con dt, dt/2 y dt/4, ver [FISICA.md § Integración numérica](FISICA.md#integración-numérica)). Se calcula en segundo plano tras cada cambio; el pie resume el error del apogeo.
+Atmósfera, rotación, método de integración, dt (o tolerancia y paso inicial con Dormand–Prince), número de pasos (y rechazados), tiempo de cálculo, número de muestras y deriva de energía. Debajo, para cada métrica del vuelo, el valor, su error estimado por extrapolación de Richardson, el valor extrapolado y el orden de convergencia observado (con dt, dt/2 y dt/4, o con tol, tol/10 y tol/100 con Dormand–Prince; ver [FISICA.md § Integración numérica](FISICA.md#integración-numérica)). Se calcula en segundo plano tras cada cambio; el pie resume el error del apogeo.
 
 ### Comparación
 - «Fijar la actual como referencia» guarda la simulación que se ve. Al cambiar parámetros, las gráficas superponen la referencia con línea discontinua.
@@ -87,8 +87,10 @@ Método de integración, dt, número de pasos, tiempo de cálculo, número de mu
 ### Parámetros
 - Panel lateral con todos los datos de entrada en una tabla, con unidad y validación en cada campo.
 - Valores derivados mostrados al lado, sin editar: masa al despegue, ṁ, tiempo de combustión, TWR inicial y Δv ideal por etapa.
-- Selección de modelo: 1D o 2D, tipo de atmósfera, método de integración (RK4 o Euler simpléctico) y dt.
-- Datos de la maniobra de inclinación (velocidad y ángulo), que solo intervienen en 2D.
+- Selección de modelo: 1D o 2D, atmósfera (exponencial o US Standard 1976), rotación terrestre (solo 2D), método de integración (RK4, Euler simpléctico o Dormand–Prince 5(4)), dt y tolerancia (gris si no interviene).
+- Datos de la maniobra de inclinación (velocidad y ángulo) y del lugar de lanzamiento (latitud y azimut), que solo intervienen en 2D; límite de aceleración (0: sin límite).
+- Por etapa, la tabla Cd(Mach) y el perfil de regulación como texto «x:y x:y …» (p. ej. `0:0.3 1.1:0.5 3:0.3`); vacío: Cd constante y empuje nominal. Cada punto mal escrito o fuera de rango se señala con su número.
+- La página se abre en alta fidelidad: 2D, US Standard 1976, rotación y Dormand–Prince. Un enlace antiguo sin estos datos se reproduce con los modelos con que se creó.
 
 ## Reproductor
 

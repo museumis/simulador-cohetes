@@ -11,19 +11,18 @@ import type { ResultadoSimulacion } from './simulacion/tipos';
 import { ErrorEntrada } from './simulacion/validacion';
 import { crearBarrido } from './ui/barrido';
 import { crearComparacion, type Simulacion } from './ui/comparacion';
-import { crearDiagnostico } from './ui/diagnostico';
+import { crearDiagnostico, textoMetodo } from './ui/diagnostico';
 import { crearListaEventos } from './ui/eventos';
 import { crearBarraExportar, descargar, nombreArchivo } from './ui/exportar';
 import { crearGraficas } from './ui/graficas';
 import { crearLineaTiempo } from './ui/linea-tiempo';
-import { NOMBRES_METODO, type SistemaUnidades } from './ui/magnitudes';
+import { ABREVIATURAS_ATMOSFERA, type SistemaUnidades } from './ui/magnitudes';
 import { crearParametros } from './ui/parametros';
 import { crearPestanas } from './ui/pestanas';
 import { crearPresupuesto } from './ui/presupuesto';
 import { crearTarea, TareaCancelada } from './ui/segundo-plano';
 import { crearTelemetria } from './ui/telemetria';
 import { instalarTeclado } from './ui/teclado';
-import { formatearNumero } from './util/formato';
 
 /** Mayor salto de reloj real que se aplica de una vez (s): evita saltos al volver a la pestaña. */
 const DT_REAL_MAXIMO = 0.1;
@@ -124,8 +123,9 @@ function intentarSimular(e: Entrada): ResultadoSimulacion | null {
 }
 
 function textoConfiguracion(): string {
-  const o = actual.entrada.opciones;
-  return `COHETE: ${actual.entrada.cohete.nombre}   MODELO: ${o.modelo}   ATM: exp   INT: ${NOMBRES_METODO[o.metodo]} dt = ${formatearNumero(o.dt, 4)} s`;
+  const d = actual.resultado.diagnostico;
+  const rotacion = d.modelo === '2D' ? `   ROT: ${d.rotacion ? 'sí' : 'no'}` : '';
+  return `COHETE: ${actual.entrada.cohete.nombre}   MODELO: ${d.modelo}   ATM: ${ABREVIATURAS_ATMOSFERA[d.atmosfera]}${rotacion}   INT: ${textoMetodo(d)}`;
 }
 
 /** Estima el error por Richardson en segundo plano; una simulación nueva cancela la anterior. */

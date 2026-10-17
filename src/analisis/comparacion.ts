@@ -1,4 +1,4 @@
-import { CAMPOS_ENTRADA, type Entrada } from '../simulacion/campos';
+import { CAMPOS_ENTRADA, CAMPOS_TABLA, tablaATexto, tablasIguales, type Entrada } from '../simulacion/campos';
 import type { ResultadoSimulacion, TipoEvento } from '../simulacion/tipos';
 import { METRICAS, metricasDelModelo, type Metrica } from './metricas';
 
@@ -55,17 +55,24 @@ export function compararEventos(actual: ResultadoSimulacion, referencia: Resulta
   });
 }
 
-/** Datos de entrada que cambian entre las dos simulaciones, incluidos el modelo de vuelo y el método de integración. */
+/**
+ * Datos de entrada que cambian entre las dos simulaciones, incluidos el modelo de vuelo, el
+ * método de integración, la atmósfera, la rotación y las tablas (como texto «x:y …»).
+ */
 export function diferenciasEntrada(actual: Entrada, referencia: Entrada): DiferenciaEntrada[] {
   const lista: DiferenciaEntrada[] = [];
-  if (actual.cohete.nombre !== referencia.cohete.nombre) {
-    lista.push({ nombre: 'nombre', unidad: '', actual: actual.cohete.nombre, referencia: referencia.cohete.nombre });
-  }
-  if (actual.opciones.modelo !== referencia.opciones.modelo) {
-    lista.push({ nombre: 'modelo', unidad: '', actual: actual.opciones.modelo, referencia: referencia.opciones.modelo });
-  }
-  if (actual.opciones.metodo !== referencia.opciones.metodo) {
-    lista.push({ nombre: 'método', unidad: '', actual: actual.opciones.metodo, referencia: referencia.opciones.metodo });
+  const textos: [string, string, string][] = [
+    ['nombre', actual.cohete.nombre, referencia.cohete.nombre],
+    ['modelo', actual.opciones.modelo, referencia.opciones.modelo],
+    ['método', actual.opciones.metodo, referencia.opciones.metodo],
+    ['atmósfera', actual.opciones.atmosfera, referencia.opciones.atmosfera],
+    ['rotación terrestre', actual.opciones.rotacion ? 'sí' : 'no', referencia.opciones.rotacion ? 'sí' : 'no'],
+  ];
+  for (const [nombre, a, r] of textos) if (a !== r) lista.push({ nombre, unidad: '', actual: a, referencia: r });
+  for (const c of CAMPOS_TABLA) {
+    const a = c.leer(actual);
+    const r = c.leer(referencia);
+    if (!tablasIguales(a, r)) lista.push({ nombre: c.nombre, unidad: '', actual: tablaATexto(a) || '—', referencia: tablaATexto(r) || '—' });
   }
   for (const c of CAMPOS_ENTRADA) {
     const a = c.leer(actual);

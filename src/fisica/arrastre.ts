@@ -1,3 +1,5 @@
+import { interpolarTabla, type Tabla } from './tabla';
+
 /**
  * Área frontal de un cuerpo de sección circular: A = π · (d/2)².
  * @param diametro (m)
@@ -65,4 +67,14 @@ export function derivadaPresionDinamicaPlana(
   productoVelocidadAceleracion: number,
 ): number {
   return 0.5 * derivadaDensidad * velocidadVertical * cuadradoVelocidad + densidad * productoVelocidadAceleracion;
+}
+
+/**
+ * Coeficiente de arrastre según el Mach: interpolación lineal en la tabla de la etapa, con el
+ * valor del extremo fuera de ella. Sin tabla, el Cd constante.
+ * @param tabla puntos (Mach, Cd) con el Mach creciente
+ * @param cdConstante Cd de la etapa sin tabla
+ */
+export function cdSegunMach(tabla: Tabla, cdConstante: number, mach: number): number {
+  return tabla.length > 0 ? interpolarTabla(tabla, mach) : cdConstante;
 }

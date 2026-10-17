@@ -28,7 +28,7 @@ interface FilaFuerza {
 const MARGEN = 14;           // px
 const PUNTA_FLECHA = 6;      // px
 const ALTO_ESCALAS = 34;     // px reservados abajo para las barras de escala
-const ALTO_LISTA = 46;       // px reservados arriba para la lista de módulos de las fuerzas
+const ALTO_LISTA = 60;       // px reservados arriba para la lista de módulos de las fuerzas
 const FRACCION_FLECHA = 0.9; // la fuerza de referencia ocupa esta fracción de la semialtura disponible
 
 function leerColores(): Colores {
@@ -250,7 +250,8 @@ export function crearEsquema(lienzo: HTMLCanvasElement): Esquema {
   /**
    * Esquema 2D en los ejes locales (horizontal a la derecha, vertical arriba): el cohete inclinado
    * según su eje, la dirección de la velocidad con las cotas de γ y α, y el diagrama de cuerpo libre
-   * con la dirección real de cada fuerza.
+   * con la dirección real de cada fuerza. Con rotación terrestre se dibuja además, discontinua, la
+   * velocidad respecto al aire, a la que se refieren α y el arrastre.
    */
   function dibujar2D(cohete: Cohete, muestra: Muestra, ancho: number, alto: number): void {
     const [e1, e2] = cohete.etapas;
@@ -259,6 +260,9 @@ export function crearEsquema(lienzo: HTMLCanvasElement): Esquema {
     const tramos = muestra.etapa === 1 ? [e1, e2] : [e2];
     const eje = muestra.anguloEmpuje;
     const gamma = muestra.anguloTrayectoria;
+    const gammaAire = muestra.anguloTrayectoriaAire;
+    // Sin rotación las dos velocidades coinciden y solo se dibuja una.
+    const conAire = Math.abs(gammaAire - gamma) > 1e-6 && muestra.velocidadAire > 0;
 
     // Perfil a escala fija (el cohete completo cabe con cualquier inclinación), girado alrededor de su centro.
     const anchoCaja = ancho * 0.46 - MARGEN;
@@ -290,11 +294,18 @@ export function crearEsquema(lienzo: HTMLCanvasElement): Esquema {
       flecha(cx, cy, largo * Math.cos(gamma), -largo * Math.sin(gamma));
       rotulo('v', cx + (largo + 8) * Math.cos(gamma), cy - (largo + 8) * Math.sin(gamma) + 4);
     }
+    if (conAire) {
+      ctx!.setLineDash([4, 3]);
+      flecha(cx, cy, largo * Math.cos(gammaAire), -largo * Math.sin(gammaAire));
+      ctx!.setLineDash([]);
+      rotulo('v_aire', cx + (largo + 8) * Math.cos(gammaAire), cy - (largo + 8) * Math.sin(gammaAire) + 4);
+    }
     cota(cx, cy, 0.36 * lado, 0, gamma, 'γ');
-    cota(cx, cy, 0.24 * lado, gamma, eje, 'α');
+    cota(cx, cy, 0.24 * lado, gammaAire, eje, 'α');
     // Valores de los ángulos, arriba a la izquierda.
     [
       `γ = ${textoAngulo(gamma, unidades)}  (trayectoria)`,
+      ...(conAire ? [`γ_aire = ${textoAngulo(gammaAire, unidades)}  (aire)`] : []),
       `θ = ${textoAngulo(eje, unidades)}  (eje)`,
       `α = ${textoAngulo(muestra.anguloAtaque, unidades)}  (ataque)`,
     ].forEach((texto, i) => rotulo(texto, MARGEN, MARGEN + 10 + 14 * i, 'left'));
@@ -307,8 +318,8 @@ export function crearEsquema(lienzo: HTMLCanvasElement): Esquema {
     const vectores = [
       { simbolo: 'F', valor: muestra.empuje, angulo: eje, recortado: false },
       { simbolo: 'W', valor: muestra.masa * muestra.gravedad, angulo: -Math.PI / 2, recortado: false },
-      // El arrastre se opone a la velocidad.
-      { simbolo: 'D', valor: muestra.arrastre, angulo: gamma + Math.PI, recortado: false },
+      // El arrastre se opone a la velocidad respecto al aire.
+      { simbolo: 'D', valor: muestra.arrastre, angulo: gammaAire + Math.PI, recortado: false },
     ];
     ctx!.strokeStyle = colores.tenue;
     ctx!.setLineDash([2, 3]);

@@ -9,16 +9,31 @@ import {
   TEMPERATURA_NIVEL_MAR,
   TEMPERATURA_TROPOPAUSA,
 } from './constantes';
+import { ALTITUDES_CAPAS_1976, datosAtmosfera1976 } from './estandar1976';
 
-/** Densidad, presión y dρ/dh en una altitud. */
+/** Modelo atmosférico: exponencial simplificado o US Standard Atmosphere 1976. */
+export type TipoAtmosfera = 'exponencial' | 'estandar1976';
+
+/** Estado de la atmósfera en una altitud. */
 export interface DatosAtmosfera {
   densidad: number;         // kg/m³
   presion: number;          // Pa
-  derivadaDensidad: number; // kg/m⁴
+  derivadaDensidad: number; // kg/m⁴, dρ/dh
+  temperatura: number;      // K
+  velocidadSonido: number;  // m/s
+}
+
+/** Calcula el estado de la atmósfera en una altitud (m) y lo escribe en `salida`. */
+export type FuncionAtmosfera = (altitud: number, salida: DatosAtmosfera) => DatosAtmosfera;
+
+/** Objeto vacío para `salida`. */
+export function crearDatosAtmosfera(): DatosAtmosfera {
+  return { densidad: 0, presion: 0, derivadaDensidad: 0, temperatura: 0, velocidadSonido: 0 };
 }
 
 /**
- * Densidad, presión y dρ/dh con una sola exponencial, para el bucle de integración.
+ * Modelo exponencial con una sola exponencial para ρ y p, y la temperatura de la atmósfera
+ * estándar simplificada, para el bucle de integración.
  * Escribe en `salida` para no reservar memoria en cada llamada.
  * @param altitud (m)
  */
@@ -27,7 +42,14 @@ export function datosAtmosfera(altitud: number, salida: DatosAtmosfera): DatosAt
   salida.densidad = DENSIDAD_NIVEL_MAR * factor;
   salida.presion = PRESION_NIVEL_MAR * factor;
   salida.derivadaDensidad = -salida.densidad / ALTURA_ESCALA;
+  salida.temperatura = temperatura(altitud);
+  salida.velocidadSonido = velocidadSonido(altitud);
   return salida;
+}
+
+/** Función del modelo atmosférico elegido. */
+export function funcionAtmosfera(tipo: TipoAtmosfera): FuncionAtmosfera {
+  return tipo === 'estandar1976' ? datosAtmosfera1976 : datosAtmosfera;
 }
 
 /**
@@ -86,4 +108,12 @@ export function velocidadSonido(altitud: number): number {
  */
 export function numeroMach(velocidad: number, altitud: number): number {
   return Math.abs(velocidad) / velocidadSonido(altitud);
+}
+
+/**
+ * Altitudes (m) en las que el modelo tiene una esquina: cambia la pendiente de la temperatura (y
+ * con ella la velocidad del sonido) y, en la US Standard Atmosphere 1976, la de dρ/dh.
+ */
+export function altitudesCapas(tipo: TipoAtmosfera): readonly number[] {
+  return tipo === 'estandar1976' ? ALTITUDES_CAPAS_1976 : [ALTITUD_TROPOPAUSA];
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  crearDormandPrince,
   crearEulerSimplectico,
   crearIntegradorRK4,
   interpolarHermite,
@@ -94,5 +95,34 @@ describe('interpolación de Hermite', () => {
       );
       esperarCercano(salida[0]!, p(t0 + theta * h));
     }
+  });
+});
+
+describe('Dormand–Prince 5(4)', () => {
+  // Con paso fijo, el error global del oscilador baja 2⁵ = 32 veces al dividir el paso a la mitad.
+  it('orden 5', () => {
+    const error = (h: number): number => {
+      const y = integrarOscilador(h, Math.round(10 / h), crearDormandPrince(2, 1e-9));
+      return Math.hypot(y[0]! - Math.cos(10), y[1]! + Math.sin(10));
+    };
+    const cociente = error(0.2) / error(0.1);
+    expect(cociente).toBeGreaterThan(28);
+    expect(cociente).toBeLessThan(36);
+  });
+
+  it('el error estimado es relativo a la tolerancia y baja como h⁵', () => {
+    const dp = crearDormandPrince(2, 1e-6);
+    const y = new Float64Array([1, 0]);
+    const dy = new Float64Array(2);
+    const salida = new Float64Array(2);
+    oscilador(y, dy);
+    dp.paso(oscilador, y, dy, 0.4, salida);
+    const e1 = dp.error();
+    dp.paso(oscilador, y, dy, 0.2, salida);
+    const e2 = dp.error();
+    expect(e1).toBeGreaterThan(1);
+    expect(e1 / e2).toBeGreaterThan(25);
+    expect(e1 / e2).toBeLessThan(40);
+    expect(crearIntegradorRK4(2).error()).toBe(0);
   });
 });

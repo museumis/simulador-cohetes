@@ -1,14 +1,25 @@
 import { CAMPOS_ETAPA, type Entrada } from '../simulacion/campos';
-import { MANIOBRA_POR_DEFECTO, OPCIONES_POR_DEFECTO } from '../simulacion/simular';
-import type { Cohete, Etapa, OpcionesSimulacion, ResultadoSimulacion } from '../simulacion/tipos';
+import { DATOS_COHETE_POR_DEFECTO, OPCIONES_POR_DEFECTO } from '../simulacion/simular';
+import type { Cohete, Etapa, OpcionesSimulacion, ResultadoSimulacion, Tabla } from '../simulacion/tipos';
 
 /** Identificador y versión del formato, para reconocer el archivo al volver a cargarlo. */
 export const FORMATO_JSON = 'simulador-cohetes';
 export const VERSION_JSON = 1;
 
-/** Configuración del modelo físico; solo la dimensión depende de las opciones. */
-export function modeloFisico(opciones: OpcionesSimulacion): { dimension: string; atmosfera: string; gravedad: string } {
-  return { dimension: opciones.modelo, atmosfera: 'exponencial', gravedad: opciones.modelo === '2D' ? '−μ·r/|r|³' : 'μ/(R+h)²' };
+/** Configuración del modelo físico, descrita a partir de las opciones. */
+export function modeloFisico(opciones: OpcionesSimulacion): {
+  dimension: string;
+  atmosfera: string;
+  gravedad: string;
+  rotacion: string;
+} {
+  const plano = opciones.modelo === '2D';
+  return {
+    dimension: opciones.modelo,
+    atmosfera: opciones.atmosfera === 'estandar1976' ? 'US Standard Atmosphere 1976' : 'exponencial',
+    gravedad: plano ? '−μ·r/|r|³' : 'μ/(R+h)²',
+    rotacion: plano && opciones.rotacion ? 'ω·cos(latitud)·sen(azimut) en el plano' : 'no',
+  };
 }
 
 /**
@@ -53,14 +64,24 @@ function numero(valor: unknown, ruta: string): number {
   return valor;
 }
 
-/** Número opcional: los archivos anteriores a la fase 5 no llevan los datos de la maniobra. */
+/** Número opcional: los archivos anteriores a las fases 5 y 6 no llevan algunos datos del cohete. */
 function numeroOpcional(valor: unknown, ruta: string, porDefecto: number): number {
   return valor === undefined ? porDefecto : numero(valor, ruta);
 }
 
+/** Tabla opcional de puntos [x, y]; vacía si falta (archivos anteriores a la fase 6). */
+function tablaOpcional(valor: unknown, ruta: string): Tabla {
+  if (valor === undefined) return [];
+  if (!Array.isArray(valor)) throw new ErrorFormato(`${ruta}: se esperaba una lista de puntos`);
+  return valor.map((punto: unknown, i): [number, number] => {
+    if (!Array.isArray(punto) || punto.length !== 2) throw new ErrorFormato(`${ruta}[${i}]: se esperaba un punto [x, y]`);
+    return [numero(punto[0], `${ruta}[${i}][0]`), numero(punto[1], `${ruta}[${i}][1]`)];
+  });
+}
+
 function leerEtapa(valor: unknown, ruta: string): Etapa {
   const o = objeto(valor, ruta);
-  const etapa = {} as Etapa;
+  const etapa = { tablaCd: tablaOpcional(o.tablaCd, `${ruta}.tablaCd`), regulacion: tablaOpcional(o.regulacion, `${ruta}.regulacion`) } as Etapa;
   for (const c of CAMPOS_ETAPA) etapa[c.clave] = numero(o[c.clave], `${ruta}.${c.clave}`);
   return etapa;
 }
@@ -89,9 +110,11 @@ export function leerJSON(texto: string): Entrada {
     etapas: [leerEtapa(c.etapas[0], 'cohete.etapas[0]'), leerEtapa(c.etapas[1], 'cohete.etapas[1]')],
     masaCargaUtil: numero(c.masaCargaUtil, 'cohete.masaCargaUtil'),
     pausaSeparacion: numero(c.pausaSeparacion, 'cohete.pausaSeparacion'),
-    velocidadManiobra: numeroOpcional(c.velocidadManiobra, 'cohete.velocidadManiobra', MANIOBRA_POR_DEFECTO.velocidadManiobra),
-    anguloManiobra: numeroOpcional(c.anguloManiobra, 'cohete.anguloManiobra', MANIOBRA_POR_DEFECTO.anguloManiobra),
+    ...DATOS_COHETE_POR_DEFECTO,
   };
+  for (const clave of Object.keys(DATOS_COHETE_POR_DEFECTO) as (keyof typeof DATOS_COHETE_POR_DEFECTO)[]) {
+    cohete[clave] = numeroOpcional(c[clave], `cohete.${clave}`, DATOS_COHETE_POR_DEFECTO[clave]);
+  }
 
   const o = raiz.opciones === undefined ? {} : objeto(raiz.opciones, 'opciones');
   const opciones: OpcionesSimulacion = { ...OPCIONES_POR_DEFECTO };
