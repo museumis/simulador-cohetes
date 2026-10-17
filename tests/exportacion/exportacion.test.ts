@@ -106,6 +106,10 @@ describe('URL', () => {
     // Un enlace anterior al modelo 2D no lleva ni el modelo ni la maniobra.
     expect(parcial.opciones.modelo).toBe('1D');
     expect(parcial.cohete.velocidadManiobra).toBe(COHETE_PRUEBA.velocidadManiobra);
+    // Aunque la base (la página recién abierta) esté en 2D.
+    const base2D: Entrada = { ...entrada, opciones: { ...entrada.opciones, modelo: '2D' } };
+    expect(decodificarURL('v=1&masaCargaUtil=500', base2D)!.opciones.modelo).toBe('1D');
+    expect(decodificarURL('v=1&modelo=2D', entrada)!.opciones.modelo).toBe('2D');
   });
 });
 

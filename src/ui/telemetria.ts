@@ -1,5 +1,5 @@
 import type { ModeloVuelo, Muestra } from '../simulacion/tipos';
-import { formatearFijo, formatearNumero, partirPorPunto } from '../util/formato';
+import { formatearDuracion, formatearNumero, partirPorPunto } from '../util/formato';
 import { aceleracionEnG, magnitudesDelModelo, textoMagnitud, unidadDe, type Magnitud, type SistemaUnidades } from './magnitudes';
 
 interface Fila {
@@ -79,7 +79,7 @@ export function crearTelemetria(contenedor: HTMLElement): Telemetria {
 
   const actualizar = (muestra: Muestra): void => {
     ultima = muestra;
-    tiempo.textContent = `T+ ${formatearFijo(muestra.t, 3)} s`;
+    tiempo.textContent = `T+ ${formatearDuracion(muestra.t, 3)}`;
     for (const f of filas) {
       const [entera, fraccion] = partirPorPunto(textoMagnitud(f.magnitud, muestra, sistema));
       f.entera.textContent = entera;

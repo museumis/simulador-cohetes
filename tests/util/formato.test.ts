@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatearFijo, formatearNumero, partirPorPunto, SEPARADOR_MILES as S, SIN_VALOR } from '../../src/util/formato';
+import { formatearDuracion, formatearFijo, formatearNumero, partirPorPunto, SEPARADOR_MILES as S, SIN_VALOR } from '../../src/util/formato';
 
 describe('formatearNumero', () => {
   it('redondea a las cifras significativas pedidas', () => {
@@ -41,6 +41,24 @@ describe('formatearFijo', () => {
     expect(formatearFijo(142.35, 3)).toBe('142.350');
     expect(formatearFijo(1_234.5, 1)).toBe(`1${S}234.5`);
     expect(formatearFijo(Number.NaN, 3)).toBe(SIN_VALOR);
+  });
+});
+
+describe('formatearDuracion', () => {
+  it('usa solo las unidades necesarias', () => {
+    expect(formatearDuracion(5.1234)).toBe('5.123 s');
+    expect(formatearDuracion(125.5)).toBe('2 min 05.500 s');
+    expect(formatearDuracion(3725.123)).toBe('1 h 02 min 05.123 s');
+  });
+
+  it('redondea antes de repartir en unidades', () => {
+    expect(formatearDuracion(59.9996)).toBe('1 min 00.000 s');
+    expect(formatearDuracion(3599.9999)).toBe('1 h 00 min 00.000 s');
+  });
+
+  it('admite signo y valores no finitos', () => {
+    expect(formatearDuracion(-65)).toBe('-1 min 05.000 s');
+    expect(formatearDuracion(Number.NaN)).toBe(SIN_VALOR);
   });
 });
 

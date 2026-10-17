@@ -56,7 +56,11 @@ export function crearParametros(
   contenedor: HTMLElement,
   alCambiar: (entrada: Entrada) => void,
 ): Parametros {
-  let entradaActual: Entrada = { cohete: copiarCohete(MODELOS[0]!.cohete), opciones: { ...OPCIONES_POR_DEFECTO } };
+  // La página se abre en el modelo 2D, con la trayectoria visible.
+  let entradaActual: Entrada = {
+    cohete: copiarCohete(MODELOS[0]!.cohete),
+    opciones: { ...OPCIONES_POR_DEFECTO, modelo: '2D' },
+  };
   let sistema: SistemaUnidades = 'si';
   let temporizador: ReturnType<typeof setTimeout> | undefined;
 

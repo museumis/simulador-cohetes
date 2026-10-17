@@ -20,8 +20,9 @@ export function codificarURL(entrada: Entrada): string {
 }
 
 /**
- * Lee la entrada de los parámetros de una URL. Los datos que falten (p. ej. la maniobra y el modelo
- * en un enlace anterior al modelo 2D) se toman de `base`; un
+ * Lee la entrada de los parámetros de una URL. Los datos que falten (p. ej. la maniobra en un
+ * enlace anterior al modelo 2D) se toman de `base`, salvo el modelo: sin él, el enlace es anterior
+ * al modelo 2D y se lee en 1D aunque la base sea 2D. Un
  * número ilegible queda como NaN para que la validación lo señale en su campo.
  * @param consulta texto de location.search, con o sin el «?»
  * @returns null si la URL no lleva una simulación
@@ -36,8 +37,7 @@ export function decodificarURL(consulta: string, base: Entrada): Entrada | null 
     const texto = p.get(c.clave);
     if (texto !== null) entrada = c.escribir(entrada, texto.trim() === '' ? Number.NaN : Number(texto));
   }
-  const modelo = p.get('modelo');
-  if (modelo !== null) entrada.opciones.modelo = modelo as ModeloVuelo;
+  entrada.opciones.modelo = (p.get('modelo') ?? '1D') as ModeloVuelo;
   const metodo = p.get('metodo');
   if (metodo !== null) entrada.opciones.metodo = metodo as MetodoIntegracion;
   return entrada;

@@ -56,6 +56,26 @@ export function formatearFijo(valor: number, decimales: number): string {
 }
 
 /**
+ * Formatea una duración en segundos como horas, minutos y segundos: «1 h 02 min 05.123 s»,
+ * «2 min 05.123 s» o «5.123 s». Las unidades mayores solo aparecen cuando hacen falta.
+ * @param decimales decimales de los segundos
+ */
+export function formatearDuracion(segundos: number, decimales = 3): string {
+  if (!Number.isFinite(segundos)) return SIN_VALOR;
+  const signo = segundos < 0 ? '-' : '';
+  // Se redondea antes de repartir: 59.9996 s con 3 decimales es 1 min 00.000 s, no 60.000 s.
+  const factor = 10 ** decimales;
+  const total = Math.round(Math.abs(segundos) * factor) / factor;
+  const horas = Math.floor(total / 3600);
+  const minutos = Math.floor((total - horas * 3600) / 60);
+  const resto = (total - horas * 3600 - minutos * 60).toFixed(decimales);
+  const anchoSegundos = decimales > 0 ? 3 + decimales : 2;
+  if (horas > 0) return `${signo}${horas} h ${String(minutos).padStart(2, '0')} min ${resto.padStart(anchoSegundos, '0')} s`;
+  if (minutos > 0) return `${signo}${minutos} min ${resto.padStart(anchoSegundos, '0')} s`;
+  return `${signo}${resto} s`;
+}
+
+/**
  * Divide un número formateado en la parte anterior al punto decimal y el resto, para
  * alinear columnas por el punto. En notación científica sin punto, el exponente va en el resto.
  */
