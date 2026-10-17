@@ -77,7 +77,9 @@ export function crearBarrido(
   filaMetrica.className = 'controles-analisis';
   const selectorMetrica = document.createElement('select');
   selectorMetrica.title = 'Métrica representada';
-  selectorMetrica.append(...METRICAS_HASTA_APOGEO.map((m) => new Option(etiqueta(m.nombre, m.unidad), m.id)));
+  selectorMetrica.append(
+    ...METRICAS_HASTA_APOGEO.map((m) => new Option(etiqueta(m.solo2D ? `${m.nombre} (2D)` : m.nombre, m.unidad), m.id)),
+  );
   const botonCSV = document.createElement('button');
   botonCSV.type = 'button';
   botonCSV.textContent = 'CSV del barrido';

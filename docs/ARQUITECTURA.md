@@ -28,7 +28,7 @@ simulador-cohetes/
 │   ├── fisica/               # funciones puras: gravedad, atmósfera, motor, arrastre, Tsiolkovski
 │   ├── simulacion/           # tipos, integradores, bucle de simulación, eventos, campos de entrada
 │   ├── reproduccion/         # reloj de simulación e interpolación entre muestras
-│   ├── render/               # esquema a escala en Canvas: perfil del cohete y vectores de fuerza
+│   ├── render/               # Canvas: esquema a escala (perfil y fuerzas) y trayectoria h(alcance)
 │   ├── analisis/             # métricas, presupuesto de Δv, Richardson, comparación, barridos
 │   ├── exportacion/          # CSV, JSON, SVG y parámetros en la URL
 │   ├── ui/                   # parámetros, telemetría, gráficas, eventos, línea de tiempo, análisis
@@ -74,13 +74,25 @@ interface Cohete {
   etapas: [Etapa, Etapa];
   masaCargaUtil: number;   // kg
   pausaSeparacion: number; // s
+  velocidadManiobra: number; // m/s, solo 2D
+  anguloManiobra: number;    // °, solo 2D
 }
+
+type ModeloVuelo = '1D' | '2D';
 
 interface Muestra {
   t: number;               // s
   altitud: number;         // m
-  velocidad: number;       // m/s
-  aceleracion: number;     // m/s²
+  velocidad: number;       // m/s; con signo en 1D, |v| en 2D
+  aceleracion: number;     // m/s²; en 2D, d|v|/dt
+  x: number;               // m, desde el centro de la Tierra (plataforma en (0, R))
+  y: number;               // m
+  alcance: number;         // m, sobre la superficie
+  velocidadVertical: number;   // m/s
+  velocidadHorizontal: number; // m/s
+  anguloTrayectoria: number;   // rad, γ
+  anguloEmpuje: number;        // rad, eje del cohete sobre la horizontal local
+  anguloAtaque: number;        // rad, α
   masa: number;            // kg
   empuje: number;          // N
   caudal: number;          // kg/s
@@ -103,17 +115,19 @@ interface Muestra {
     direccion: number;     // 0 en 1D
   };
   deltaVIdeal: number;     // acumulada, m/s
+  orbita: ElementosOrbitales; // energia, momentoAngular, semiejeMayor, excentricidad, altitudPerigeo, altitudApogeo
 }
 
 type TipoEvento =
-  | 'despegue' | 'mach1' | 'maxQ' | 'finCombustion1' | 'separacion'
-  | 'encendido2' | 'finCombustion2' | 'apogeo' | 'impacto';
+  | 'despegue' | 'inicioManiobra' | 'finManiobra' | 'mach1' | 'maxQ' | 'finCombustion1'
+  | 'separacion' | 'encendido2' | 'finCombustion2' | 'orbita' | 'apogeo' | 'impacto';
 
 interface Evento { tipo: TipoEvento; t: number; estado: Muestra; }
 
 type MetodoIntegracion = 'rk4' | 'eulerSimplectico';
 
 interface OpcionesSimulacion {
+  modelo: ModeloVuelo;      // '1D' por defecto
   metodo: MetodoIntegracion; // 'rk4' por defecto
   dt: number;               // s, 0,01 por defecto
   duracionMaxima: number;   // s, 7200 por defecto
@@ -135,11 +149,11 @@ interface ResultadoSimulacion {
   eventos: Evento[];
   despega: boolean;
   resumen: { apogeo: number; velocidadMaxima: number; maxQ: number; deltaVIdeal: number }; // velocidadMaxima = máx |v|
-  diagnostico: { metodo: MetodoIntegracion; dt: number; pasos: number; tiempoCalculoMs: number; derivaEnergia: number };
+  diagnostico: { modelo: ModeloVuelo; metodo: MetodoIntegracion; dt: number; pasos: number; tiempoCalculoMs: number; derivaEnergia: number };
 }
 ```
 
-En la fase 5 se añaden `x`, `y` y los elementos orbitales; `altitud` y `velocidad` se mantienen para que el panel y las gráficas sigan funcionando.
+Los dos modelos comparten el bucle de `simular()` y el tipo `Muestra`: en 1D las magnitudes del plano valen lo que corresponde a una trayectoria vertical (x = 0, γ = 90°…). Las métricas, magnitudes y columnas que solo tienen sentido en 2D llevan la marca `solo2D` y la interfaz las oculta en 1D.
 
 ## Reproductor
 
@@ -154,6 +168,8 @@ En la fase 5 se añaden `x`, `y` y los elementos orbitales; `altitud` y `velocid
 - Un `<canvas>` solo para el esquema; las gráficas son de uPlot y la telemetría es HTML con texto.
 - Esquema a escala: perfil del cohete en líneas finas y vectores de fuerza con su escala en N. Sin rellenos, sin color salvo el acento.
 - La escala de longitudes se fija con el cohete completo y la de fuerzas con el máximo del empuje y del peso en todo el vuelo, para que ninguna cambie durante la reproducción. El arrastre de la reentrada puede superar esa escala: el vector se recorta, se dibuja discontinuo y su módulo se rotula «fuera de escala».
+- En 2D el cohete se dibuja inclinado según su eje en los ejes locales (horizontal y vertical), con la dirección de la velocidad, las cotas de γ y α y los vectores de fuerza en su dirección real.
+- Trayectoria (`render/trayectoria.ts`, solo 2D): altitud frente al alcance, a escala real o con una exageración vertical redonda indicada en el eje; la parte recorrida se resalta y un clic lleva el reproductor a ese punto.
 - Se redibuja solo cuando cambia el instante del reproductor.
 
 ## Análisis
@@ -172,7 +188,9 @@ En la fase 5 se añaden `x`, `y` y los elementos orbitales; `altitud` y `velocid
 | Canvas 2D para el esquema | Solo líneas y vectores; no hace falta WebGL |
 | Sin elementos decorativos | Herramienta técnica: todo lo que se ve es un dato, una gráfica o un esquema a escala |
 | Paso fijo RK4 en lugar de paso adaptativo | Simple, determinista y suficientemente preciso con dt = 0,01 s |
-| Simulación principal en el hilo principal | Tarda decenas de milisegundos y la interfaz necesita el resultado enseguida |
+| Simulación principal en el hilo principal | Tarda entre 100 y 400 ms (unos 1,5 µs por paso) y la interfaz necesita el resultado enseguida |
+| Estado plano también en 1D | Un solo bucle, mismos eventos y mismas muestras; el 1D es el caso con el empuje en la vertical local y no cambia ningún resultado anterior |
+| Vuelo orbital limitado a 600 s tras la inserción | Una vuelta completa con paso fijo son ~550 000 pasos (más de 1 s); llegará con el paso adaptativo de la fase 6 |
 | Richardson y barridos en un Web Worker | Repiten la simulación hasta cientos de veces; en el hilo principal bloquearían la interfaz durante segundos |
 | SVG generado a mano en lugar de serializar uPlot | uPlot dibuja en canvas; el SVG se construye con los mismos datos, diezmados a unos pocos puntos por píxel |
 | uPlot para las gráficas | Muy ligero y rápido con miles de puntos |

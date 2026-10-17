@@ -11,6 +11,14 @@ const COLUMNAS: readonly Columna[] = [
   { cabecera: 'altitud [m]', valor: (m) => m.altitud },
   { cabecera: 'velocidad [m/s]', valor: (m) => m.velocidad },
   { cabecera: 'aceleracion [m/s²]', valor: (m) => m.aceleracion },
+  { cabecera: 'x [m]', valor: (m) => m.x },
+  { cabecera: 'y [m]', valor: (m) => m.y },
+  { cabecera: 'alcance [m]', valor: (m) => m.alcance },
+  { cabecera: 'velocidadVertical [m/s]', valor: (m) => m.velocidadVertical },
+  { cabecera: 'velocidadHorizontal [m/s]', valor: (m) => m.velocidadHorizontal },
+  { cabecera: 'anguloTrayectoria [rad]', valor: (m) => m.anguloTrayectoria },
+  { cabecera: 'anguloEmpuje [rad]', valor: (m) => m.anguloEmpuje },
+  { cabecera: 'anguloAtaque [rad]', valor: (m) => m.anguloAtaque },
   { cabecera: 'masa [kg]', valor: (m) => m.masa },
   { cabecera: 'empuje [N]', valor: (m) => m.empuje },
   { cabecera: 'caudal [kg/s]', valor: (m) => m.caudal },
@@ -31,6 +39,12 @@ const COLUMNAS: readonly Columna[] = [
   { cabecera: 'perdidaArrastre [m/s]', valor: (m) => m.perdidas.arrastre },
   { cabecera: 'perdidaContrapresion [m/s]', valor: (m) => m.perdidas.contrapresion },
   { cabecera: 'perdidaDireccion [m/s]', valor: (m) => m.perdidas.direccion },
+  { cabecera: 'energiaOrbital [J/kg]', valor: (m) => m.orbita.energia },
+  { cabecera: 'momentoAngular [m²/s]', valor: (m) => m.orbita.momentoAngular },
+  { cabecera: 'semiejeMayor [m]', valor: (m) => m.orbita.semiejeMayor },
+  { cabecera: 'excentricidad [1]', valor: (m) => m.orbita.excentricidad },
+  { cabecera: 'altitudPerigeo [m]', valor: (m) => m.orbita.altitudPerigeo },
+  { cabecera: 'altitudApogeo [m]', valor: (m) => m.orbita.altitudApogeo },
 ];
 
 /**

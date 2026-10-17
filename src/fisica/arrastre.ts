@@ -46,3 +46,23 @@ export function derivadaPresionDinamica(
 export function fuerzaArrastre(presionDinamica: number, cd: number, area: number): number {
   return presionDinamica * cd * area;
 }
+
+/**
+ * Derivada temporal de la presión dinámica en el plano: dq/dt = ½ · (dρ/dh) · (dh/dt) · |v|² + ρ · (v⃗ · a⃗).
+ * Con la velocidad vertical, dh/dt = v y v⃗ · a⃗ = v · a, coincide con derivadaPresionDinamica.
+ * @param densidad ρ (kg/m³)
+ * @param derivadaDensidad dρ/dh (kg/m⁴)
+ * @param velocidadVertical dh/dt (m/s)
+ * @param cuadradoVelocidad |v|² (m²/s²)
+ * @param productoVelocidadAceleracion v⃗ · a⃗ (m²/s³)
+ * @returns dq/dt (Pa/s)
+ */
+export function derivadaPresionDinamicaPlana(
+  densidad: number,
+  derivadaDensidad: number,
+  velocidadVertical: number,
+  cuadradoVelocidad: number,
+  productoVelocidadAceleracion: number,
+): number {
+  return 0.5 * derivadaDensidad * velocidadVertical * cuadradoVelocidad + densidad * productoVelocidadAceleracion;
+}

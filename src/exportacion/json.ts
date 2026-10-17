@@ -1,13 +1,15 @@
 import { CAMPOS_ETAPA, type Entrada } from '../simulacion/campos';
-import { OPCIONES_POR_DEFECTO } from '../simulacion/simular';
+import { MANIOBRA_POR_DEFECTO, OPCIONES_POR_DEFECTO } from '../simulacion/simular';
 import type { Cohete, Etapa, OpcionesSimulacion, ResultadoSimulacion } from '../simulacion/tipos';
 
 /** Identificador y versión del formato, para reconocer el archivo al volver a cargarlo. */
 export const FORMATO_JSON = 'simulador-cohetes';
 export const VERSION_JSON = 1;
 
-/** Configuración del modelo físico, fija en esta versión. */
-export const MODELO = { dimension: '1D', atmosfera: 'exponencial', gravedad: 'μ/(R+h)²' } as const;
+/** Configuración del modelo físico; solo la dimensión depende de las opciones. */
+export function modeloFisico(opciones: OpcionesSimulacion): { dimension: string; atmosfera: string; gravedad: string } {
+  return { dimension: opciones.modelo, atmosfera: 'exponencial', gravedad: opciones.modelo === '2D' ? '−μ·r/|r|³' : 'μ/(R+h)²' };
+}
 
 /**
  * JSON con la entrada, la configuración del modelo, el resumen, el diagnóstico y los eventos
@@ -18,7 +20,7 @@ export function exportarJSON(entrada: Entrada, resultado: ResultadoSimulacion): 
     {
       formato: FORMATO_JSON,
       version: VERSION_JSON,
-      modelo: MODELO,
+      modelo: modeloFisico(entrada.opciones),
       cohete: entrada.cohete,
       opciones: entrada.opciones,
       despega: resultado.despega,
@@ -49,6 +51,11 @@ function objeto(valor: unknown, ruta: string): Record<string, unknown> {
 function numero(valor: unknown, ruta: string): number {
   if (typeof valor !== 'number') throw new ErrorFormato(`${ruta}: se esperaba un número`);
   return valor;
+}
+
+/** Número opcional: los archivos anteriores a la fase 5 no llevan los datos de la maniobra. */
+function numeroOpcional(valor: unknown, ruta: string, porDefecto: number): number {
+  return valor === undefined ? porDefecto : numero(valor, ruta);
 }
 
 function leerEtapa(valor: unknown, ruta: string): Etapa {
@@ -82,6 +89,8 @@ export function leerJSON(texto: string): Entrada {
     etapas: [leerEtapa(c.etapas[0], 'cohete.etapas[0]'), leerEtapa(c.etapas[1], 'cohete.etapas[1]')],
     masaCargaUtil: numero(c.masaCargaUtil, 'cohete.masaCargaUtil'),
     pausaSeparacion: numero(c.pausaSeparacion, 'cohete.pausaSeparacion'),
+    velocidadManiobra: numeroOpcional(c.velocidadManiobra, 'cohete.velocidadManiobra', MANIOBRA_POR_DEFECTO.velocidadManiobra),
+    anguloManiobra: numeroOpcional(c.anguloManiobra, 'cohete.anguloManiobra', MANIOBRA_POR_DEFECTO.anguloManiobra),
   };
 
   const o = raiz.opciones === undefined ? {} : objeto(raiz.opciones, 'opciones');

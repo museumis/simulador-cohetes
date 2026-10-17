@@ -1,6 +1,6 @@
-import type { Muestra } from '../simulacion/tipos';
+import type { ModeloVuelo, Muestra } from '../simulacion/tipos';
 import { formatearFijo, formatearNumero, partirPorPunto } from '../util/formato';
-import { aceleracionEnG, MAGNITUDES, textoMagnitud, unidadDe, type Magnitud, type SistemaUnidades } from './magnitudes';
+import { aceleracionEnG, magnitudesDelModelo, textoMagnitud, unidadDe, type Magnitud, type SistemaUnidades } from './magnitudes';
 
 interface Fila {
   magnitud: Magnitud;
@@ -13,6 +13,8 @@ interface Fila {
 export interface Telemetria {
   actualizar(muestra: Muestra): void;
   setSistema(sistema: SistemaUnidades): void;
+  /** Muestra las magnitudes del modelo de vuelo (en 2D, también posición, ángulos y órbita). */
+  setModelo(modelo: ModeloVuelo): void;
 }
 
 function celda(fila: HTMLTableRowElement, clase: string, texto = ''): HTMLTableCellElement {
@@ -35,35 +37,45 @@ export function crearTelemetria(contenedor: HTMLElement): Telemetria {
 
   const tabla = document.createElement('table');
   tabla.className = 'tabla-valores';
-  const filas: Fila[] = MAGNITUDES.map((magnitud) => {
-    const tr = tabla.insertRow();
-    tr.title = magnitud.nombre;
-    celda(tr, 'simbolo', magnitud.simbolo);
-    return {
-      magnitud,
-      entera: celda(tr, 'entera'),
-      fraccion: celda(tr, 'fraccion'),
-      unidad: celda(tr, 'unidad'),
-      extra: celda(tr, 'extra'),
-    };
-  });
-  const filaEtapa = tabla.insertRow();
-  filaEtapa.title = 'etapa inferior acoplada y estado de su motor';
-  celda(filaEtapa, 'simbolo', 'etapa');
-  const etapa = celda(filaEtapa, 'entera');
-  celda(filaEtapa, 'fraccion');
-  const motor = celda(filaEtapa, 'unidad');
-  celda(filaEtapa, 'extra');
+  let filas: Fila[] = [];
+  let etapa: HTMLElement;
+  let motor: HTMLElement;
+  let modelo: ModeloVuelo | null = null;
+
+  function construir(nuevo: ModeloVuelo): void {
+    modelo = nuevo;
+    tabla.replaceChildren();
+    filas = magnitudesDelModelo(nuevo).map((magnitud) => {
+      const tr = tabla.insertRow();
+      tr.title = magnitud.nombre;
+      celda(tr, 'simbolo', magnitud.simbolo);
+      return {
+        magnitud,
+        entera: celda(tr, 'entera'),
+        fraccion: celda(tr, 'fraccion'),
+        unidad: celda(tr, 'unidad'),
+        extra: celda(tr, 'extra'),
+      };
+    });
+    const filaEtapa = tabla.insertRow();
+    filaEtapa.title = 'etapa inferior acoplada y estado de su motor';
+    celda(filaEtapa, 'simbolo', 'etapa');
+    etapa = celda(filaEtapa, 'entera');
+    celda(filaEtapa, 'fraccion');
+    motor = celda(filaEtapa, 'unidad');
+    celda(filaEtapa, 'extra');
+    pintarUnidades();
+  }
 
   contenedor.append(cabecera, tabla);
 
   let sistema: SistemaUnidades = 'si';
   let ultima: Muestra | null = null;
 
-  const pintarUnidades = (): void => {
+  function pintarUnidades(): void {
     for (const f of filas) f.unidad.textContent = unidadDe(f.magnitud, sistema).unidad;
-  };
-  pintarUnidades();
+  }
+  construir('1D');
 
   const actualizar = (muestra: Muestra): void => {
     ultima = muestra;
@@ -84,6 +96,11 @@ export function crearTelemetria(contenedor: HTMLElement): Telemetria {
     setSistema(nuevo) {
       sistema = nuevo;
       pintarUnidades();
+      if (ultima) actualizar(ultima);
+    },
+    setModelo(nuevo) {
+      if (nuevo === modelo) return;
+      construir(nuevo);
       if (ultima) actualizar(ultima);
     },
   };

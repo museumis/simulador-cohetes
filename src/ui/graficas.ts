@@ -1,11 +1,11 @@
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { graficasSVG, type GraficaSVG } from '../exportacion/svg';
-import type { ResultadoSimulacion } from '../simulacion/tipos';
+import type { ModeloVuelo, ResultadoSimulacion } from '../simulacion/tipos';
 import { unirSeries } from '../util/series';
 import { leerColores } from './colores';
 import { formatearNumero } from '../util/formato';
-import { buscarMagnitud, GRAFICAS_POR_DEFECTO, MAGNITUDES, unidadDe, type SistemaUnidades } from './magnitudes';
+import { buscarMagnitud, GRAFICAS_POR_DEFECTO, magnitudesDelModelo, unidadDe, type SistemaUnidades } from './magnitudes';
 
 /** Altura de la cabecera de cada gráfica (selector y escala), en px; coincide con el CSS. */
 const ALTO_CABECERA = 22;
@@ -80,6 +80,7 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
   let tCursor = 0;
   let sincronizando = false;
   let rangoX: { min: number; max: number } | null = null;
+  let modelo: ModeloVuelo = '1D';
 
   const paneles: Panel[] = GRAFICAS_POR_DEFECTO.map((id) => crearPanel(id));
 
@@ -120,7 +121,7 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
 
   function rellenarSelector(panel: Panel): void {
     panel.selector.replaceChildren(
-      ...MAGNITUDES.map((m) => {
+      ...magnitudesDelModelo(modelo).map((m) => {
         const unidad = unidadDe(m, sistema).unidad;
         return new Option(unidad ? `${m.simbolo} [${unidad}]` : m.simbolo, m.id, false, m.id === panel.magnitudId);
       }),
@@ -290,6 +291,11 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
     cargar(nuevo) {
       resultado = nuevo;
       rangoX = null;
+      modelo = nuevo.diagnostico.modelo;
+      // Al volver a 1D, las gráficas de magnitudes que solo existen en 2D vuelven a las de por defecto.
+      paneles.forEach((p, i) => {
+        if (buscarMagnitud(p.magnitudId).solo2D && modelo === '1D') p.magnitudId = GRAFICAS_POR_DEFECTO[i]!;
+      });
       construirTodas();
     },
     setSistema(nuevo) {

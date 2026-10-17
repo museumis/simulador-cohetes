@@ -19,9 +19,14 @@ export function indiceMuestra(muestras: readonly Muestra[], tiempo: number): num
 
 const lineal = (a: number, b: number, f: number): number => a + (b - a) * f;
 
+/** Como lineal, pero admite valores infinitos (el apogeo de una trayectoria abierta): toma el más cercano. */
+const linealExtendida = (a: number, b: number, f: number): number =>
+  Number.isFinite(a) && Number.isFinite(b) ? lineal(a, b, f) : f < 0.5 ? a : b;
+
 /**
  * Interpolación lineal entre dos muestras consecutivas. Las magnitudes discretas
- * (etapa, motor, caudal) se toman de la anterior.
+ * (etapa, motor, caudal) se toman de la anterior. Los ángulos no dan la vuelta entre dos
+ * muestras: γ y el eje están en [−90°, 270°) y cambian poco en 0,05 s.
  */
 export function interpolarMuestras(a: Muestra, b: Muestra, tiempo: number): Muestra {
   const intervalo = b.t - a.t;
@@ -32,6 +37,14 @@ export function interpolarMuestras(a: Muestra, b: Muestra, tiempo: number): Mues
     altitud: lineal(a.altitud, b.altitud, f),
     velocidad: lineal(a.velocidad, b.velocidad, f),
     aceleracion: lineal(a.aceleracion, b.aceleracion, f),
+    x: lineal(a.x, b.x, f),
+    y: lineal(a.y, b.y, f),
+    alcance: lineal(a.alcance, b.alcance, f),
+    velocidadVertical: lineal(a.velocidadVertical, b.velocidadVertical, f),
+    velocidadHorizontal: lineal(a.velocidadHorizontal, b.velocidadHorizontal, f),
+    anguloTrayectoria: lineal(a.anguloTrayectoria, b.anguloTrayectoria, f),
+    anguloEmpuje: lineal(a.anguloEmpuje, b.anguloEmpuje, f),
+    anguloAtaque: lineal(a.anguloAtaque, b.anguloAtaque, f),
     masa: lineal(a.masa, b.masa, f),
     empuje: lineal(a.empuje, b.empuje, f),
     caudal: a.caudal,
@@ -54,6 +67,14 @@ export function interpolarMuestras(a: Muestra, b: Muestra, tiempo: number): Mues
       direccion: lineal(a.perdidas.direccion, b.perdidas.direccion, f),
     },
     deltaVIdeal: lineal(a.deltaVIdeal, b.deltaVIdeal, f),
+    orbita: {
+      energia: lineal(a.orbita.energia, b.orbita.energia, f),
+      momentoAngular: lineal(a.orbita.momentoAngular, b.orbita.momentoAngular, f),
+      semiejeMayor: linealExtendida(a.orbita.semiejeMayor, b.orbita.semiejeMayor, f),
+      excentricidad: lineal(a.orbita.excentricidad, b.orbita.excentricidad, f),
+      altitudPerigeo: lineal(a.orbita.altitudPerigeo, b.orbita.altitudPerigeo, f),
+      altitudApogeo: linealExtendida(a.orbita.altitudApogeo, b.orbita.altitudApogeo, f),
+    },
   };
 }
 

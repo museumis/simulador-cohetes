@@ -3,7 +3,7 @@ import { ORDEN_METODO } from '../simulacion/integrador';
 import { simular } from '../simulacion/simular';
 import type { MetodoIntegracion } from '../simulacion/tipos';
 import { DT_MINIMO } from '../simulacion/validacion';
-import { METRICAS } from './metricas';
+import { metricasDelModelo } from './metricas';
 
 /** Extrapolación de Richardson de una magnitud calculada con pasos dt y dt/2. */
 export interface Extrapolacion {
@@ -60,7 +60,7 @@ export function estimarError(entrada: Entrada): EstimacionError | null {
   const inicio = performance.now();
   const resultados = [1, 2, 4].map((k) => simular(cohete, { ...opciones, dt: opciones.dt / k }));
   const orden = ORDEN_METODO[opciones.metodo];
-  const filas = METRICAS.map((metrica): FilaRichardson => {
+  const filas = metricasDelModelo(opciones.modelo).map((metrica): FilaRichardson => {
     const valores = resultados.map((r) => metrica.valor(r)) as [number, number, number];
     const { error, extrapolado } = extrapolarRichardson(valores[0], valores[1], orden);
     return { metrica: metrica.id, valores, error, extrapolado, ordenObservado: ordenObservado(...valores) };

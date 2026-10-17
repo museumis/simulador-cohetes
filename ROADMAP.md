@@ -83,16 +83,18 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 ## Fase 5: trayectoria 2D y órbita
 
-- [ ] Física 2D en coordenadas con origen en el centro de la Tierra (gravedad vectorial).
-- [ ] Programa de inclinación: subida vertical, maniobra de inclinación y giro gravitatorio.
-- [ ] Parámetros nuevos: velocidad y ángulo de la maniobra de inclinación.
-- [ ] Pérdida por dirección en el presupuesto de Δv.
-- [ ] Elementos orbitales instantáneos: energía, semieje mayor, excentricidad, apogeo y perigeo. Evento "órbita alcanzada".
-- [ ] Gráfica de altitud frente al alcance, a escala o con exageración vertical indicada.
-- [ ] Esquema con vectores de velocidad, ángulo de ataque y ángulo de trayectoria.
-- [ ] Mantener el modo 1D seleccionable.
+- [x] Física 2D en coordenadas con origen en el centro de la Tierra (gravedad vectorial).
+- [x] Programa de inclinación: subida vertical, maniobra de inclinación y giro gravitatorio.
+- [x] Parámetros nuevos: velocidad y ángulo de la maniobra de inclinación.
+- [x] Pérdida por dirección en el presupuesto de Δv.
+- [x] Elementos orbitales instantáneos: energía, semieje mayor, excentricidad, apogeo y perigeo. Evento "órbita alcanzada".
+- [x] Gráfica de altitud frente al alcance, a escala o con exageración vertical indicada.
+- [x] Esquema con vectores de velocidad, ángulo de ataque y ángulo de trayectoria.
+- [x] Mantener el modo 1D seleccionable.
 
 **Hecho cuando:** un modelo de referencia llega a órbita y los elementos orbitales se conservan en vuelo balístico fuera de la atmósfera.
+
+El Falcon 9 (18,5 t, maniobra de 2,6° a 60 m/s) llega a una órbita de unos 345 × 518 km y el Electron (9,5°) a una de unos 170 × 228 km. Tras la inserción se simulan 600 s de vuelo orbital; la vuelta completa queda para el paso adaptativo de la fase 6.
 
 ## Fase 6: alta fidelidad
 
@@ -101,7 +103,7 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 - [ ] Rotación terrestre y latitud de lanzamiento (velocidad inicial y velocidad relativa al aire).
 - [ ] Perfil de empuje (regulación) por tramos durante la combustión.
 - [ ] Límite de aceleración máxima con regulación automática.
-- [ ] Integrador de paso adaptativo (Dormand–Prince 5(4)) con tolerancia configurable.
+- [ ] Integrador de paso adaptativo (Dormand–Prince 5(4)) con tolerancia configurable. Con él, simular una vuelta completa en órbita (ahora se limita a 600 s tras la inserción).
 - [ ] Opcional: término J2 de la gravedad terrestre.
 
 **Hecho cuando:** cada mejora tiene un test que compara con un valor de referencia publicado.

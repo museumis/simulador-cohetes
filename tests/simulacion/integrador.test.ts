@@ -55,7 +55,7 @@ describe('RK4', () => {
 });
 
 describe('Euler simpléctico', () => {
-  const euler = crearEulerSimplectico(2, 0, 1);
+  const euler = crearEulerSimplectico(2, [0], [1]);
 
   it('es de orden 1: con la mitad de paso el error global baja a la mitad', () => {
     const tFinal = 10;

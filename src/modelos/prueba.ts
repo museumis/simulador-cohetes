@@ -2,7 +2,8 @@ import type { Cohete } from '../simulacion/tipos';
 
 /**
  * Cohete de sondeo de dos etapas con valores redondos. No es un cohete real.
- * TWR al despegue ≈ 1,77; apogeo de varios cientos de km.
+ * TWR al despegue ≈ 1,77; apogeo de varios cientos de km. En 2D, con la maniobra de 3° a 60 m/s,
+ * hace un vuelo suborbital.
  * Los tests de la simulación usan estos mismos valores.
  */
 export const COHETE_PRUEBA: Cohete = {
@@ -31,4 +32,6 @@ export const COHETE_PRUEBA: Cohete = {
   ],
   masaCargaUtil: 200,
   pausaSeparacion: 2,
+  velocidadManiobra: 60,
+  anguloManiobra: 3,
 };

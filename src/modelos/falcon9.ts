@@ -17,7 +17,10 @@ import type { Cohete } from '../simulacion/tipos';
  *   se toma 200 s como valor nominal de una tobera de vacío.
  * - Longitud de la etapa 2: 13,8 m de etapa + 13,1 m de cofia; diámetro de 3,7 m (la cofia,
  *   de 5,2 m, no se modela). Coeficientes de arrastre estimados.
- * - Carga útil de 15 000 kg, por debajo del máximo.
+ * - Carga útil de 18 500 kg, la publicada a LEO con recuperación (aquí sin reservar propelente
+ *   para el aterrizaje).
+ * - Maniobra de inclinación ajustada con el modelo 2D (sin rotación terrestre): 2,6° a 60 m/s dejan
+ *   la etapa 2 en una órbita de unos 345 × 518 km.
  */
 export const FALCON_9: Cohete = {
   nombre: 'Falcon 9 Block 5',
@@ -43,6 +46,8 @@ export const FALCON_9: Cohete = {
       cd: 0.3,
     },
   ],
-  masaCargaUtil: 15_000,
+  masaCargaUtil: 18_500,
   pausaSeparacion: 7,
+  velocidadManiobra: 60,
+  anguloManiobra: 2.6,
 };

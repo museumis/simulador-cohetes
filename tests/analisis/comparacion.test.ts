@@ -33,6 +33,18 @@ describe('comparación de simulaciones', () => {
     expect(d.find((x) => x.tipo === 'impacto')!.actual).toBeNaN();
   });
 
+  it('las métricas de 2D solo aparecen si alguna simulación es 2D', () => {
+    expect(compararMetricas(rCarga, rBase).some((d) => d.metrica.solo2D)).toBe(false);
+    const plana = simular(COHETE_PRUEBA, { modelo: '2D' });
+    const d = compararMetricas(plana, rBase);
+    const alcance = d.find((x) => x.metrica.id === 'alcanceImpacto')!;
+    expect(alcance.actual).toBeGreaterThan(0);
+    expect(alcance.referencia).toBeNaN();
+    expect(diferenciasEntrada({ ...base, opciones: { ...base.opciones, modelo: '2D' } }, base)).toEqual([
+      { nombre: 'modelo', unidad: '', actual: '2D', referencia: '1D' },
+    ]);
+  });
+
   it('lista los datos de entrada que cambian', () => {
     const otra = { cohete: masCarga.cohete, opciones: { ...base.opciones, metodo: 'eulerSimplectico' as const } };
     expect(diferenciasEntrada(otra, base)).toEqual([

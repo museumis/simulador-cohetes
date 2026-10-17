@@ -3,6 +3,7 @@ import { exportarCSV } from './exportacion/csv';
 import { ErrorFormato, exportarJSON, leerJSON } from './exportacion/json';
 import { codificarURL, decodificarURL } from './exportacion/url';
 import { crearEsquema } from './render/esquema';
+import { crearTrayectoria, type EscalaTrayectoria } from './render/trayectoria';
 import { Reproductor } from './reproduccion/reproductor';
 import type { Entrada } from './simulacion/campos';
 import { simular } from './simulacion/simular';
@@ -41,12 +42,15 @@ const botonUnidades = elemento<HTMLButtonElement>('boton-unidades');
 const botonParametros = elemento<HTMLButtonElement>('boton-parametros');
 const panelParametros = elemento('panel-parametros');
 const resumen = elemento('resumen-configuracion');
+const panelTrayectoria = elemento('panel-trayectoria');
+const botonEscalaTrayectoria = elemento<HTMLButtonElement>('boton-escala-trayectoria');
 
 let sistema: SistemaUnidades = 'practico';
 let tema: Tema = matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
 let iniciado = false;
 let actual: Simulacion;
 let referencia: Simulacion | null = null;
+let escalaTrayectoria: EscalaTrayectoria = 'exagerada';
 
 const tareaRichardson = crearTarea();
 const tareaBarrido = crearTarea();
@@ -59,7 +63,8 @@ const pestanas = crearPestanas(elemento('panel-analisis'), [
 ]);
 const telemetria = crearTelemetria(elemento('panel-telemetria'));
 const presupuesto = crearPresupuesto(elemento('panel-presupuesto'));
-const graficas = crearGraficas(elemento('panel-graficas'), (t) => reproductor.irA(t));
+const graficas = crearGraficas(elemento('graficas-tiempo'), (t) => reproductor.irA(t));
+const trayectoria = crearTrayectoria(elemento<HTMLCanvasElement>('lienzo-trayectoria'), (t) => reproductor.irA(t));
 const esquema = crearEsquema(elemento<HTMLCanvasElement>('lienzo-esquema'));
 const eventos = crearListaEventos(pestanas.panel('eventos'), (t) => reproductor.irA(t));
 const diagnostico = crearDiagnostico(pestanas.panel('diagnostico'), elemento('panel-diagnostico'));
@@ -120,7 +125,7 @@ function intentarSimular(e: Entrada): ResultadoSimulacion | null {
 
 function textoConfiguracion(): string {
   const o = actual.entrada.opciones;
-  return `COHETE: ${actual.entrada.cohete.nombre}   MODELO: 1D   ATM: exp   INT: ${NOMBRES_METODO[o.metodo]} dt = ${formatearNumero(o.dt, 4)} s`;
+  return `COHETE: ${actual.entrada.cohete.nombre}   MODELO: ${o.modelo}   ATM: exp   INT: ${NOMBRES_METODO[o.metodo]} dt = ${formatearNumero(o.dt, 4)} s`;
 }
 
 /** Estima el error por Richardson en segundo plano; una simulación nueva cancela la anterior. */
@@ -141,6 +146,10 @@ function estimarError(sim: Simulacion): void {
 function cargarSimulacion(sim: Simulacion): void {
   actual = sim;
   resumen.textContent = textoConfiguracion();
+  const plano = sim.resultado.diagnostico.modelo === '2D';
+  telemetria.setModelo(sim.resultado.diagnostico.modelo);
+  panelTrayectoria.hidden = !plano;
+  trayectoria.cargar(sim.resultado);
   graficas.cargar(sim.resultado);
   esquema.cargar(sim.entrada.cohete, sim.resultado);
   eventos.cargar(sim.resultado.eventos);
@@ -182,6 +191,7 @@ reproductor.suscribir((cambio) => {
   presupuesto.actualizar(cambio.estado);
   graficas.cursor(cambio.t);
   esquema.dibujar(cambio.estado);
+  if (!panelTrayectoria.hidden) trayectoria.dibujar(cambio.estado);
   eventos.actualizar(cambio.t);
   lineaTiempo.actualizar(cambio);
 });
@@ -191,6 +201,7 @@ function aplicarTema(): void {
   botonTema.textContent = `tema: ${tema}`;
   graficas.refrescarTema();
   esquema.refrescarTema();
+  trayectoria.refrescarTema();
   barrido.refrescarTema();
 }
 
@@ -201,6 +212,7 @@ function aplicarSistema(): void {
   eventos.setSistema(sistema);
   parametros.setSistema(sistema);
   esquema.setUnidades(sistema);
+  trayectoria.setUnidades(sistema);
   reproductor.irA(reproductor.t);
 }
 
@@ -220,6 +232,16 @@ botonUnidades.addEventListener('click', () => {
   aplicarSistema();
 });
 botonParametros.addEventListener('click', alternarParametros);
+function aplicarEscalaTrayectoria(): void {
+  botonEscalaTrayectoria.textContent = escalaTrayectoria === 'real' ? 'escala real' : 'exageración vertical';
+  botonEscalaTrayectoria.setAttribute('aria-pressed', String(escalaTrayectoria === 'exagerada'));
+  trayectoria.setEscala(escalaTrayectoria);
+}
+botonEscalaTrayectoria.addEventListener('click', () => {
+  escalaTrayectoria = escalaTrayectoria === 'real' ? 'exagerada' : 'real';
+  aplicarEscalaTrayectoria();
+});
+aplicarEscalaTrayectoria();
 instalarTeclado(reproductor, { alternarParametros, alternarExportar: () => barraExportar.alternar() });
 
 raiz.dataset.theme = tema === 'claro' ? 'light' : 'dark';

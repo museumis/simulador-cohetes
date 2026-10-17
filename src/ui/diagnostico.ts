@@ -67,6 +67,7 @@ export function crearDiagnostico(contenedor: HTMLElement, pie: HTMLElement): Pan
     if (!resultado) return;
     const d = resultado.diagnostico;
     const partes = [
+      `modelo ${d.modelo}`,
       `${NOMBRES_METODO[d.metodo]} dt = ${formatearNumero(d.dt, 4)} s`,
       `${formatearFijo(d.pasos, 0)} pasos`,
       `${formatearNumero(d.tiempoCalculoMs, 3)} ms`,
@@ -82,9 +83,10 @@ export function crearDiagnostico(contenedor: HTMLElement, pie: HTMLElement): Pan
     const d = r.diagnostico;
     tablaGeneral.replaceChildren();
     const cuerpo = tablaGeneral.createTBody();
+    fila(cuerpo, ['modelo de vuelo', d.modelo]);
     fila(cuerpo, ['método', NOMBRES_METODO[d.metodo]]);
     fila(cuerpo, ['paso dt', `${formatearNumero(d.dt, 4)} s`]);
-    fila(cuerpo, ['pasos', formatearFijo(d.pasos, 0)], 'incluye los pasos acortados en los fines de combustión');
+    fila(cuerpo, ['pasos', formatearFijo(d.pasos, 0)], 'incluye los pasos acortados en los fines de combustión y en los cambios del programa de inclinación');
     fila(cuerpo, ['tiempo de cálculo', `${formatearNumero(d.tiempoCalculoMs, 3)} ms`]);
     fila(cuerpo, ['muestras', formatearFijo(r.muestras.length, 0)], '20 Hz más una por evento');
     fila(

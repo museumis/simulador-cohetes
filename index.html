@@ -20,7 +20,16 @@
     <div id="cuerpo">
       <main id="principal">
         <section id="panel-telemetria" class="panel" aria-label="Telemetría"></section>
-        <section id="panel-graficas" class="panel" aria-label="Gráficas"></section>
+        <section id="panel-graficas" class="panel">
+          <div id="graficas-tiempo" aria-label="Gráficas frente al tiempo"></div>
+          <div id="panel-trayectoria" aria-label="Trayectoria: altitud frente al alcance" hidden>
+            <div class="panel-titulo">
+              <span>TRAYECTORIA h(alcance)</span>
+              <button type="button" id="boton-escala-trayectoria" title="Alternar entre escala real y exageración vertical"></button>
+            </div>
+            <canvas id="lienzo-trayectoria"></canvas>
+          </div>
+        </section>
         <section id="panel-presupuesto" class="panel" aria-label="Presupuesto de Δv"></section>
         <section id="panel-esquema" class="panel" aria-label="Esquema a escala">
           <div class="panel-titulo">ESQUEMA (a escala)</div>

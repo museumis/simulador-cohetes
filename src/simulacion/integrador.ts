@@ -46,25 +46,33 @@ export function crearIntegradorRK4(n: number): Integrador {
 
 /**
  * Crea un integrador de Euler simpléctico (semiimplícito) de orden 1: todas las componentes
- * avanzan con la derivada al principio del paso salvo la posición, que usa la velocidad ya
- * actualizada. Conserva una energía modificada en el vuelo balístico, al contrario que Euler
+ * avanzan con la derivada al principio del paso salvo las posiciones, que usan las velocidades ya
+ * actualizadas. Conserva una energía modificada en el vuelo balístico, al contrario que Euler
  * explícito; sirve para comparar con RK4.
- * @param posicion índice de la posición en el estado
- * @param velocidad índice de su velocidad
+ * @param posiciones índices de las componentes de la posición en el estado
+ * @param velocidades índices de sus velocidades, en el mismo orden
  */
-export function crearEulerSimplectico(n: number, posicion: number, velocidad: number): Integrador {
+export function crearEulerSimplectico(n: number, posiciones: readonly number[], velocidades: readonly number[]): Integrador {
   return {
     paso(_f, y, dy0, h, salida) {
       for (let i = 0; i < n; i++) salida[i] = y[i]! + h * dy0[i]!;
       // En la plataforma la velocidad sigue siendo 0 y la posición no cambia.
-      salida[posicion] = y[posicion]! + h * salida[velocidad]!;
+      for (let k = 0; k < posiciones.length; k++) {
+        const p = posiciones[k]!;
+        salida[p] = y[p]! + h * salida[velocidades[k]!]!;
+      }
     },
   };
 }
 
-/** Crea el integrador de un método para un estado con posición y velocidad. */
-export function crearIntegrador(metodo: MetodoIntegracion, n: number, posicion: number, velocidad: number): Integrador {
-  return metodo === 'rk4' ? crearIntegradorRK4(n) : crearEulerSimplectico(n, posicion, velocidad);
+/** Crea el integrador de un método para un estado con posiciones y velocidades. */
+export function crearIntegrador(
+  metodo: MetodoIntegracion,
+  n: number,
+  posiciones: readonly number[],
+  velocidades: readonly number[],
+): Integrador {
+  return metodo === 'rk4' ? crearIntegradorRK4(n) : crearEulerSimplectico(n, posiciones, velocidades);
 }
 
 /**

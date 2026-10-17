@@ -50,7 +50,7 @@ Los valores son solo ilustrativos. El presupuesto de Δv se refiere a lo acumula
 ## Paneles
 
 ### Telemetría
-Todas las variables de estado y derivadas en el instante actual, con su unidad: t, h, v, a (también en g), m, F, ṁ, Isp, TWR, ρ, p, T, velocidad del sonido, Mach, q, etapa y estado del motor. En 2D se añaden x, y, alcance, ángulo de trayectoria γ, ángulo de empuje y los elementos orbitales instantáneos.
+Todas las variables de estado y derivadas en el instante actual, con su unidad: t, h, v, a (también en g), m, F, ṁ, Isp, TWR, ρ, p, T, velocidad del sonido, Mach, q, etapa y estado del motor. En 2D se añaden x, y, alcance, velocidades vertical y horizontal, ángulo de trayectoria γ, ángulo del eje (empuje) θ, ángulo de ataque α, la pérdida por dirección y los elementos orbitales instantáneos (ε, momento angular, semieje mayor, excentricidad, perigeo y apogeo). En 2D v es el módulo |v| y a es d|v|/dt. Los ángulos se muestran en rad (SI) o en grados (unidades prácticas).
 
 ### Gráficas
 - Gráficas apiladas con un eje de tiempo común y un cursor sincronizado con el reproductor.
@@ -59,15 +59,15 @@ Todas las variables de estado y derivadas en el instante actual, con su unidad: 
 - Zoom y desplazamiento con el ratón; doble clic para restablecer.
 - Escala logarítmica opcional por eje (útil para ρ, p y q). Abarca como mucho 15 décadas bajo el máximo de la serie y solo rotula potencias de 10.
 - Un clic (sin arrastrar) lleva el reproductor a ese instante.
-- En 2D, además: altitud frente al alcance, a escala real o con exageración vertical indicada en el eje.
+- En 2D, a la derecha de las gráficas: altitud frente al alcance, con exageración vertical redonda (×2, ×5, ×20…) indicada en el título del eje o a escala real (botón en la cabecera). La parte recorrida va en el color del texto, el resto en gris y la posición actual con el acento. Un clic cerca de la trayectoria lleva el reproductor a ese instante.
 
 ### Esquema
 - Perfil del cohete en líneas finas y a escala (longitud y diámetro de cada etapa), sin relleno ni color.
 - Vectores de fuerza (empuje, arrastre, peso) con longitud proporcional al módulo y escala indicada en N, en un diagrama de cuerpo libre junto al perfil, con origen común y cada vector en su columna.
-- En 2D: vector velocidad, ángulo de ataque y ángulo de trayectoria con cotas.
+- En 2D: el perfil girado según el eje del cohete sobre la horizontal local, la dirección de la velocidad (longitud fija), cotas de γ (horizontal → velocidad) y α (velocidad → eje) con sus valores en una lista, y el diagrama de cuerpo libre con cada fuerza en su dirección real: F según el eje, W hacia abajo y D opuesta a la velocidad.
 
 ### Presupuesto de Δv
-Δv ideal menos cada pérdida acumulada hasta el instante actual, con su porcentaje del ideal (ver [FISICA.md § Pérdidas de Δv](FISICA.md#pérdidas-de-δv)), el resultante, la velocidad ganada |v| − |v0| y la diferencia entre ambos como comprobación de cierre (absoluta y relativa al ideal). Después del apogeo la identidad no se aplica y el cierre se muestra como «no aplicable en el descenso».
+Δv ideal menos cada pérdida acumulada hasta el instante actual, con su porcentaje del ideal (ver [FISICA.md § Pérdidas de Δv](FISICA.md#pérdidas-de-δv)), el resultante, la velocidad ganada |v| − |v0| y la diferencia entre ambos como comprobación de cierre (absoluta y relativa al ideal). En 1D, después del apogeo la identidad no se aplica y el cierre se muestra como «no aplicable en el descenso»; en 2D vale en todo el vuelo.
 
 ### Eventos
 Lista con el instante exacto (T+ con milisegundos) y el estado completo en ese instante. Al hacer clic, el reproductor salta al evento.
@@ -88,6 +88,7 @@ Método de integración, dt, número de pasos, tiempo de cálculo, número de mu
 - Panel lateral con todos los datos de entrada en una tabla, con unidad y validación en cada campo.
 - Valores derivados mostrados al lado, sin editar: masa al despegue, ṁ, tiempo de combustión, TWR inicial y Δv ideal por etapa.
 - Selección de modelo: 1D o 2D, tipo de atmósfera, método de integración (RK4 o Euler simpléctico) y dt.
+- Datos de la maniobra de inclinación (velocidad y ángulo), que solo intervienen en 2D.
 
 ## Reproductor
 

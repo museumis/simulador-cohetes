@@ -2,10 +2,10 @@ import { calcularDerivados } from '../analisis/derivados';
 import { copiarCohete, MODELOS } from '../modelos';
 import { buscarCampo, CAMPOS_ETAPA, copiarEntrada, type Entrada } from '../simulacion/campos';
 import { OPCIONES_POR_DEFECTO } from '../simulacion/simular';
-import type { MetodoIntegracion } from '../simulacion/tipos';
-import { METODOS, validarCohete, validarOpciones, type ErrorValidacion } from '../simulacion/validacion';
+import type { MetodoIntegracion, ModeloVuelo } from '../simulacion/tipos';
+import { METODOS, MODELOS_VUELO, validarCohete, validarOpciones, type ErrorValidacion } from '../simulacion/validacion';
 import { formatearNumero } from '../util/formato';
-import { NOMBRES_METODO, textoConUnidad, type SistemaUnidades } from './magnitudes';
+import { NOMBRES_METODO, NOMBRES_MODELO, textoConUnidad, type SistemaUnidades } from './magnitudes';
 
 /** Retardo entre la última edición y el recálculo (ms). */
 const RETARDO_RECALCULO = 250;
@@ -89,7 +89,11 @@ export function crearParametros(
   tituloDerivados.textContent = 'VALORES DERIVADOS';
   const configuracion = document.createElement('div');
   configuracion.className = 'nota';
-  configuracion.textContent = 'modelo 1D vertical · atmósfera exponencial · integrador de paso fijo';
+
+  const selectorModelo = document.createElement('select');
+  selectorModelo.title = 'Modelo de vuelo';
+  selectorModelo.dataset.campo = 'modelo';
+  selectorModelo.append(...MODELOS_VUELO.map((m) => new Option(NOMBRES_MODELO[m], m)));
 
   const selectorMetodo = document.createElement('select');
   selectorMetodo.title = 'Método de integración';
@@ -115,14 +119,28 @@ export function crearParametros(
     }
     const carga = entrada('masaCargaUtil', cohete.masaCargaUtil, 'carga útil [kg]');
     const pausa = entrada('pausaSeparacion', cohete.pausaSeparacion, 'pausa entre etapas [s]');
+    const vManiobra = entrada('velocidadManiobra', cohete.velocidadManiobra, 'solo 2D: |v| al empezar la maniobra de inclinación [m/s]');
+    const aManiobra = entrada('anguloManiobra', cohete.anguloManiobra, 'solo 2D: inclinación del empuje respecto a la vertical local [°]');
     const dt = entrada('dt', opciones.dt, 'paso de integración [s]');
-    entradas.push(carga, pausa, dt);
+    entradas.push(carga, pausa, vManiobra, aManiobra, dt);
     filaTabla(cuerpo, ['carga útil', carga, '', 'kg'], false);
     filaTabla(cuerpo, ['pausa entre etapas', pausa, '', 's'], false);
+    filaTabla(cuerpo, ['modelo de vuelo', selectorModelo, '', ''], false);
+    filaTabla(cuerpo, ['v maniobra (2D)', vManiobra, '', 'm/s'], false);
+    filaTabla(cuerpo, ['ángulo maniobra (2D)', aManiobra, '', '°'], false);
     filaTabla(cuerpo, ['método de integración', selectorMetodo, '', ''], false);
     filaTabla(cuerpo, ['paso de integración dt', dt, '', 's'], false);
+    selectorModelo.value = opciones.modelo;
     selectorMetodo.value = opciones.metodo;
+    pintarConfiguracion();
     for (const e of entradas) e.addEventListener('input', () => alEditar(e));
+  }
+
+  function pintarConfiguracion(): void {
+    const plano = entradaActual.opciones.modelo === '2D';
+    configuracion.textContent = plano
+      ? 'modelo 2D: gravedad vectorial y programa de inclinación (subida vertical, maniobra, giro gravitatorio) · atmósfera exponencial · integrador de paso fijo'
+      : 'modelo 1D vertical (la maniobra no interviene) · atmósfera exponencial · integrador de paso fijo';
   }
 
   function aplicar(campo: string, valor: number): void {
@@ -135,7 +153,7 @@ export function crearParametros(
 
   function pintarErrores(lista: ErrorValidacion[]): void {
     const porCampo = new Map(lista.map((e) => [e.campo, e]));
-    for (const e of [...entradas, selectorMetodo]) {
+    for (const e of [...entradas, selectorModelo, selectorMetodo]) {
       const error = porCampo.get(e.dataset.campo ?? '');
       e.classList.toggle('invalido', error !== undefined);
       e.setAttribute('aria-invalid', String(error !== undefined));
@@ -194,6 +212,12 @@ export function crearParametros(
     if (!modelo) return;
     entradaActual = { ...entradaActual, cohete: copiarCohete(modelo.cohete) };
     construirEntrada();
+    revisar(false);
+  });
+
+  selectorModelo.addEventListener('change', () => {
+    entradaActual = { ...entradaActual, opciones: { ...entradaActual.opciones, modelo: selectorModelo.value as ModeloVuelo } };
+    pintarConfiguracion();
     revisar(false);
   });
 

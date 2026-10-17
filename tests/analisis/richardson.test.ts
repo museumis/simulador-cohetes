@@ -46,6 +46,14 @@ describe('estimarError', () => {
     expect(apogeo.ordenObservado).toBeLessThan(1.1);
   });
 
+  it('solo incluye las métricas de 2D en el modelo 2D', () => {
+    const plano = { ...entrada('rk4', 0.4), opciones: { ...entrada('rk4', 0.4).opciones, modelo: '2D' as const } };
+    expect(estimarError(entrada('rk4', 0.8))!.filas.map((f) => f.metrica)).not.toContain('alcanceImpacto');
+    const alcance = estimarError(plano)!.filas.find((f) => f.metrica === 'alcanceImpacto')!;
+    expect(alcance.ordenObservado).toBeGreaterThan(3);
+    expect(alcance.ordenObservado).toBeLessThan(5);
+  });
+
   it('no se puede estimar si dt/4 queda por debajo del paso mínimo', () => {
     expect(estimarError(entrada('rk4', 2e-4))).toBeNull();
   });

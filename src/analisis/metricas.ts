@@ -1,4 +1,4 @@
-import type { Muestra, ResultadoSimulacion, TipoEvento } from '../simulacion/tipos';
+import type { ModeloVuelo, Muestra, ResultadoSimulacion, TipoEvento } from '../simulacion/tipos';
 
 /** Un número que resume un vuelo, para estimar su error, compararlo o barrerlo. */
 export interface Metrica {
@@ -8,6 +8,8 @@ export interface Metrica {
   cifras: number;      // cifras significativas al mostrarla
   /** true si se conoce al llegar al apogeo: vale para simulaciones con detenerEnApogeo. */
   hastaApogeo: boolean;
+  /** true si solo tiene sentido en el modelo 2D (elementos orbitales, alcance); en 1D vale NaN. */
+  solo2D?: boolean;
   /** Valor SI; NaN si el vuelo no llega al evento del que depende. */
   valor(r: ResultadoSimulacion): number;
 }
@@ -21,6 +23,11 @@ function enEvento(tipo: TipoEvento, valor: (m: Muestra) => number): (r: Resultad
     const m = estadoEvento(r, tipo);
     return m ? valor(m) : Number.NaN;
   };
+}
+
+/** Solo en 2D: en 1D la trayectoria es radial y sus elementos orbitales no informan de nada. */
+function en2D(valor: (r: ResultadoSimulacion) => number): (r: ResultadoSimulacion) => number {
+  return (r) => (r.diagnostico.modelo === '2D' ? valor(r) : Number.NaN);
 }
 
 /** Estado en el apogeo o, si no lo hay, al final del vuelo simulado. */
@@ -74,8 +81,71 @@ export const METRICAS: readonly Metrica[] = [
     hastaApogeo: true,
     valor: (r) => estadoApogeo(r).perdidas.contrapresion,
   },
+  {
+    id: 'perdidaDireccion',
+    nombre: 'pérdida dirección (apogeo)',
+    unidad: 'm/s',
+    cifras: 7,
+    hastaApogeo: true,
+    solo2D: true,
+    valor: en2D((r) => estadoApogeo(r).perdidas.direccion),
+  },
+  {
+    id: 'perigeoFinal',
+    nombre: 'perigeo al fin de comb. 2',
+    unidad: 'm',
+    cifras: 8,
+    hastaApogeo: true,
+    solo2D: true,
+    valor: en2D(enEvento('finCombustion2', (m) => m.orbita.altitudPerigeo)),
+  },
+  {
+    id: 'apogeoOrbitalFinal',
+    nombre: 'apogeo orbital al fin de comb. 2',
+    unidad: 'm',
+    cifras: 8,
+    hastaApogeo: true,
+    solo2D: true,
+    valor: en2D(enEvento('finCombustion2', (m) => m.orbita.altitudApogeo)),
+  },
+  {
+    id: 'excentricidadFinal',
+    nombre: 'excentricidad al fin de comb. 2',
+    unidad: '',
+    cifras: 7,
+    hastaApogeo: true,
+    solo2D: true,
+    valor: en2D(enEvento('finCombustion2', (m) => m.orbita.excentricidad)),
+  },
+  {
+    id: 'gammaFinal',
+    nombre: 'γ al fin de comb. 2',
+    unidad: 'rad',
+    cifras: 7,
+    hastaApogeo: true,
+    solo2D: true,
+    valor: en2D(enEvento('finCombustion2', (m) => m.anguloTrayectoria)),
+  },
+  {
+    id: 'tOrbita',
+    nombre: 't de órbita alcanzada',
+    unidad: 's',
+    cifras: 8,
+    hastaApogeo: true,
+    solo2D: true,
+    valor: en2D(enEvento('orbita', (m) => m.t)),
+  },
   { id: 'deltaVIdeal', nombre: 'Δv ideal', unidad: 'm/s', cifras: 8, hastaApogeo: true, valor: (r) => r.resumen.deltaVIdeal },
   { id: 'tImpacto', nombre: 't del impacto', unidad: 's', cifras: 8, hastaApogeo: false, valor: enEvento('impacto', (m) => m.t) },
+  {
+    id: 'alcanceImpacto',
+    nombre: 'alcance en el impacto',
+    unidad: 'm',
+    cifras: 8,
+    hastaApogeo: false,
+    solo2D: true,
+    valor: en2D(enEvento('impacto', (m) => m.alcance)),
+  },
   {
     id: 'velocidadImpacto',
     nombre: 'v en el impacto',
@@ -88,6 +158,11 @@ export const METRICAS: readonly Metrica[] = [
 
 /** Métricas que se pueden obtener deteniendo la simulación en el apogeo. */
 export const METRICAS_HASTA_APOGEO: readonly Metrica[] = METRICAS.filter((m) => m.hastaApogeo);
+
+/** Métricas que tienen sentido en un modelo de vuelo. */
+export function metricasDelModelo(modelo: ModeloVuelo, lista: readonly Metrica[] = METRICAS): Metrica[] {
+  return lista.filter((m) => modelo === '2D' || !m.solo2D);
+}
 
 export function buscarMetrica(id: string): Metrica {
   const m = METRICAS.find((x) => x.id === id);

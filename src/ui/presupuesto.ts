@@ -18,7 +18,7 @@ interface Fila {
 
 const TERMINOS: readonly { etiqueta: string; valor: (p: PresupuestoDeltaV) => number; porcentaje: boolean; titulo: string }[] = [
   { etiqueta: 'ideal (vacío)', valor: (p) => p.ideal, porcentaje: false, titulo: '∫ F_vacío / m dt' },
-  { etiqueta: '− gravedad', valor: (p) => p.gravedad, porcentaje: true, titulo: '∫ g dt (en la plataforma, ∫ F/m dt)' },
+  { etiqueta: '− gravedad', valor: (p) => p.gravedad, porcentaje: true, titulo: '1D: ∫ g dt; 2D: ∫ g · sin γ dt; en la plataforma, ∫ F/m dt' },
   { etiqueta: '− arrastre', valor: (p) => p.arrastre, porcentaje: true, titulo: '∫ D / m dt' },
   { etiqueta: '− contrapresión', valor: (p) => p.contrapresion, porcentaje: true, titulo: '∫ (F_vacío − F) / m dt' },
   { etiqueta: '− dirección', valor: (p) => p.direccion, porcentaje: true, titulo: '∫ F/m · (1 − cos α) dt; 0 en 1D' },

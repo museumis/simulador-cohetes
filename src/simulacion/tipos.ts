@@ -1,6 +1,7 @@
+import type { ElementosOrbitales } from '../fisica/orbita';
 import type { MetodoIntegracion } from './integrador';
 
-export type { MetodoIntegracion };
+export type { ElementosOrbitales, MetodoIntegracion };
 
 /** Datos de entrada de una etapa. */
 export interface Etapa {
@@ -20,15 +21,21 @@ export interface Cohete {
   etapas: [Etapa, Etapa];
   masaCargaUtil: number;   // kg
   pausaSeparacion: number; // s, entre el fin de la etapa 1 y el encendido de la 2
+  velocidadManiobra: number; // m/s, solo 2D: |v| al empezar la maniobra de inclinación
+  anguloManiobra: number;    // °, solo 2D: inclinación del empuje respecto a la vertical local en la maniobra
 }
+
+/** Modelo de vuelo: vertical (1D) o en el plano de la trayectoria (2D). */
+export type ModeloVuelo = '1D' | '2D';
 
 /** Configuración de una simulación. Los interruptores físicos sirven para los tests de validación. */
 export interface OpcionesSimulacion {
+  modelo: ModeloVuelo;
   metodo: MetodoIntegracion;
   dt: number;               // s, paso de integración
   duracionMaxima: number;   // s, límite de seguridad del vuelo simulado
   altitudInicial: number;   // m; con 0 y velocidad 0 el cohete parte de la plataforma
-  velocidadInicial: number; // m/s
+  velocidadInicial: number; // m/s, vertical
   gravedad: boolean;        // false: g = 0
   arrastre: boolean;        // false: D = 0
   contrapresion: boolean;   // false: Isp y empuje de vacío a cualquier altitud
@@ -39,8 +46,16 @@ export interface OpcionesSimulacion {
 export interface Muestra {
   t: number;               // s
   altitud: number;         // m
-  velocidad: number;       // m/s
-  aceleracion: number;     // m/s²
+  velocidad: number;       // m/s; en 1D con signo (positiva hacia arriba), en 2D el módulo |v|
+  aceleracion: number;     // m/s²; en 1D con signo, en 2D d|v|/dt
+  x: number;               // m, posición con origen en el centro de la Tierra; el eje y pasa por la plataforma
+  y: number;               // m
+  alcance: number;         // m, distancia sobre la superficie desde la plataforma
+  velocidadVertical: number;   // m/s, componente radial de la velocidad
+  velocidadHorizontal: number; // m/s, componente horizontal local, positiva hacia el alcance creciente
+  anguloTrayectoria: number;   // rad, γ: de la horizontal local a la velocidad
+  anguloEmpuje: number;        // rad, de la horizontal local al eje del cohete (dirección del empuje)
+  anguloAtaque: number;        // rad, α: de la velocidad al eje del cohete
   masa: number;            // kg
   empuje: number;          // N
   caudal: number;          // kg/s
@@ -63,16 +78,20 @@ export interface Muestra {
     direccion: number;     // 0 en 1D
   };
   deltaVIdeal: number;     // acumulada, m/s
+  orbita: ElementosOrbitales; // instantáneos
 }
 
 export type TipoEvento =
   | 'despegue'
+  | 'inicioManiobra'
+  | 'finManiobra'
   | 'mach1'
   | 'maxQ'
   | 'finCombustion1'
   | 'separacion'
   | 'encendido2'
   | 'finCombustion2'
+  | 'orbita'
   | 'apogeo'
   | 'impacto';
 
@@ -93,6 +112,7 @@ export interface ResultadoSimulacion {
     deltaVIdeal: number;     // m/s, acumulada al final
   };
   diagnostico: {
+    modelo: ModeloVuelo;
     metodo: MetodoIntegracion;
     dt: number;              // s
     pasos: number;

@@ -32,7 +32,7 @@ Por cada etapa:
 | `longitud` | m | Solo para el esquema a escala; en la etapa 2 incluye la cofia y la carga útil |
 | `cd` | — | Coeficiente de arrastre, constante (aprox. 0,3–0,5) |
 
-Del cohete en conjunto: `masaCargaUtil` (kg) y `pausaSeparacion` (s, tiempo entre el fin de la etapa 1 y el encendido de la 2).
+Del cohete en conjunto: `masaCargaUtil` (kg), `pausaSeparacion` (s, tiempo entre el fin de la etapa 1 y el encendido de la 2) y, solo para el modelo 2D, `velocidadManiobra` (m/s) y `anguloManiobra` (°) del [programa de inclinación](#programa-de-inclinación).
 
 ## Gravedad
 
@@ -135,9 +135,9 @@ dm/dt = −ṁ       (solo durante la combustión)
 
 ### Integración numérica
 
-- RK4 con paso fijo `dt = 0,01 s` (configurable). Para comparar se puede elegir Euler simpléctico (semiimplícito, orden 1): todas las componentes avanzan con la derivada al principio del paso salvo la altitud, que usa la velocidad ya actualizada, `v₁ = v₀ + a(y₀)·dt`, `h₁ = h₀ + v₁·dt`. En vuelo balístico conserva una energía modificada (la deriva no crece), pero su error es mucho mayor que el de RK4.
-- Si el paso actual atravesaría el fin de una combustión, se acorta para terminar justo en ese instante. Así la masa nunca queda negativa y las discontinuidades del empuje no degradan el orden del método.
-- Los eventos sin instante conocido de antemano (Mach 1, Max-Q, apogeo, impacto) se localizan dentro del paso buscando la raíz sobre el propio paso del integrador acortado (regula falsi de Illinois, tolerancia 10⁻¹² s). Así la precisión del evento es la del integrador y no la de una interpolación.
+- RK4 con paso fijo `dt = 0,01 s` (configurable). Para comparar se puede elegir Euler simpléctico (semiimplícito, orden 1): todas las componentes avanzan con la derivada al principio del paso salvo la posición, que usa la velocidad ya actualizada, `v₁ = v₀ + a(y₀)·dt`, `r₁ = r₀ + v₁·dt`. En vuelo balístico conserva una energía modificada (la deriva no crece), pero su error es mucho mayor que el de RK4.
+- Si el paso actual atravesaría el fin de una combustión, se acorta para terminar justo en ese instante; en 2D, también en cada cambio del programa de inclinación (localizado como los eventos). Así la masa nunca queda negativa y las discontinuidades del empuje no degradan el orden del método.
+- Los eventos sin instante conocido de antemano (Mach 1, Max-Q, órbita, apogeo, impacto) se localizan dentro del paso buscando la raíz sobre el propio paso del integrador acortado (regula falsi de Illinois, tolerancia 10⁻¹² s). Así la precisión del evento es la del integrador y no la de una interpolación.
 - Estimación del error: se repite la simulación con `dt/2` y `dt/4` y se aplica extrapolación de Richardson con el orden p del método (4 en RK4, 1 en Euler simpléctico). Si `x(h) = X + C·hᵖ`:
   - error del valor mostrado: `x(dt) − X ≈ (x_dt − x_dt/2) · 2ᵖ / (2ᵖ − 1)` (el de `x(dt/2)` es `(x_dt − x_dt/2) / (2ᵖ − 1)`);
   - valor extrapolado: `X ≈ x_dt/2 + (x_dt/2 − x_dt) / (2ᵖ − 1)`;
@@ -150,13 +150,16 @@ dm/dt = −ṁ       (solo durante la combustión)
 | Evento | Condición |
 |---|---|
 | Despegue | Primer instante con F > m·g |
+| Inicio maniobra (2D) | \|v\| = `velocidadManiobra` |
+| Giro gravitatorio (2D) | γ = 90° − `anguloManiobra` |
 | Mach 1 | Mach cruza 1 hacia arriba (solo la primera vez) |
 | Max-Q | Máximo global de q con v > 0: dq/dt pasa de + a −, dentro de un paso o justo en un fin de combustión |
 | Fin de combustión 1 | Propelente 1 agotado |
 | Separación | A la vez que el fin de combustión 1 |
 | Encendido 2 | Fin de combustión 1 + `pausaSeparacion` |
 | Fin de combustión 2 | Propelente 2 agotado |
-| Apogeo | v cambia de signo de + a − (si ocurre más de una vez, el de mayor altitud) |
+| Órbita (2D) | ε < 0 y perigeo > 100 km, la primera vez |
+| Apogeo | La velocidad vertical cambia de signo de + a − (si ocurre más de una vez, el de mayor altitud) |
 | Impacto | h ≤ 0 tras el despegue |
 
 ## Pérdidas de Δv
@@ -165,42 +168,63 @@ Se integran como variables de estado adicionales para explicar de dónde sale ca
 
 ```
 Δv_ideal(t)        = ∫ F_vacío / m dt        (= Σ u_vacío · ln(m0/m) por etapa)
-pérdida gravedad   = ∫ g(h) · sin γ dt        (1D: γ = 90°, sin γ = 1)
+pérdida gravedad   = ∫ g(h) · sin γ dt        (1D: se toma siempre sin γ = 1)
 pérdida arrastre   = ∫ D / m dt
 pérdida contrapres.= ∫ (F_vacío − F(p)) / m dt
 pérdida dirección  = ∫ F/m · (1 − cos α) dt   (solo 2D; α = ángulo entre empuje y velocidad)
 ```
 
+En 2D, `sin γ` es el de la trayectoria y la pérdida por gravedad baja en el descenso.
+
 En la plataforma la reacción del suelo N anula el empuje que no levanta el cohete. Esa parte, `g − N/m = F/m`, se cuenta como pérdida por gravedad, de modo que la identidad también se cumple antes del despegue.
 
-Identidad de cierre (exacta salvo error numérico, mientras el cohete asciende):
+Identidad de cierre (exacta salvo error numérico; en 1D, mientras el cohete asciende; en 2D, en todo el vuelo):
 
 ```
 |v(t)| − |v(0)| = Δv_ideal − gravedad − arrastre − contrapresión − dirección
 ```
 
-## Modelo 2D (fase 5)
+## Modelo 2D
 
-- Origen en el centro de la Tierra, posición **r** y velocidad **v** como vectores.
-- Gravedad: `a_g = −μ · r / |r|³`.
-- Altitud: `h = |r| − R`.
-- Arrastre con la velocidad relativa al aire (y a la rotación de la Tierra, si se activa).
-- Programa de inclinación:
-  1. Subida vertical hasta `velocidadManiobra` (p. ej. 60 m/s).
-  2. Inclinación instantánea de `anguloManiobra` grados (p. ej. 2–5°).
-  3. Giro gravitatorio: el empuje se alinea con la velocidad.
-- Elementos orbitales a partir de r y v:
+Se elige con la opción `modelo` (`'1D'` o `'2D'`). Los dos comparten el mismo bucle de integración: el estado es siempre plano y el 1D es el caso en que el empuje va por la vertical local, así que x y vx son exactamente 0 y la trayectoria es vertical sin redondeo.
+
+- Origen en el centro de la Tierra; la plataforma está en (0, R) y el alcance crece hacia +x. Estado: `[x, y, vx, vy, m]` más las pérdidas, el ángulo central recorrido (para el alcance) y el trabajo de empuje y arrastre (para la deriva de energía).
+- Gravedad: `a_g = −μ · r / |r|³`. Altitud: `h = |r| − R`. Alcance: `R · φ`, con φ el ángulo central desde la plataforma, integrado como variable de estado (`dφ/dt = (y·vx − x·vy) / r²`) para que no salte al dar media vuelta.
+- Arrastre opuesto a la velocidad (sin rotación terrestre la velocidad relativa al aire es la inercial; la rotación llega en la fase 6). Sin sustentación.
+- Ángulos, medidos desde la horizontal local: trayectoria `γ = atan2(v_vertical, v_horizontal)`, eje del cohete (dirección del empuje) θ y ataque `α = θ − γ`.
+
+### Programa de inclinación
+
+Datos del cohete (solo intervienen en 2D): `velocidadManiobra` (m/s) y `anguloManiobra` (grados, en (0, 90]; es un dato de entrada y se convierte a radianes al simular).
+
+1. **Subida vertical:** el empuje va por la vertical local hasta que |v| = `velocidadManiobra` (evento «inicio maniobra»).
+2. **Maniobra:** el empuje se inclina de golpe `anguloManiobra` respecto a la vertical local, hacia el alcance creciente, y se mantiene así respecto a la vertical local. La gravedad y el empuje van girando la velocidad hasta que su inclinación iguala la del empuje, γ = 90° − `anguloManiobra` (evento «giro gravitatorio»). Para ángulos pequeños la ecuación de β = 90° − γ es lineal en (β, ángulo), así que la duración de la maniobra casi no depende del ángulo.
+3. **Giro gravitatorio:** el empuje se alinea con la velocidad (α = 0) hasta el final. Con el motor apagado el eje sigue la misma regla que el programa.
+
+Los dos cambios del programa son discontinuidades del empuje: el paso se acorta para terminar justo en ellas, igual que en los fines de combustión, y los instantes se localizan con la misma búsqueda de raíz.
+
+### Pérdidas en 2D
+
+La pérdida por gravedad es `∫ g · sin γ dt` (en 1D se mantiene `∫ g dt`) y la de dirección `∫ F/m · (1 − cos α) dt`, que solo es distinta de 0 durante la maniobra. Como `d|v|/dt = a⃗ · v̂`, la identidad de cierre vale en todo el vuelo, también en el descenso, y no solo en el ascenso como en 1D.
+
+### Elementos orbitales
+
+A partir de r y v en cada muestra (`fisica/orbita.ts`):
 
 ```
 ε  = v²/2 − μ/r                    (energía específica)
-a  = −μ / (2ε)                     (semieje mayor)
-h⃗  = r⃗ × v⃗
-e  = √(1 + 2·ε·|h⃗|² / μ²)          (excentricidad)
-rp = a·(1 − e),   ra = a·(1 + e)
+a  = −μ / (2ε)                     (semieje mayor; negativo en una hipérbola)
+h  = |r⃗ × v⃗|                       (momento angular específico)
+e  = √(1 + 2·ε·h² / μ²)            (excentricidad)
+p  = h²/μ,  rp = p / (1 + e),  ra = p / (1 − e) si e < 1, ∞ si no
 perigeo = rp − R,  apogeo = ra − R
 ```
 
-- Órbita alcanzada si `ε < 0` y `perigeo > 100 km`.
+`rp = p / (1 + e)` equivale a `a·(1 − e)` pero vale para cualquier cónica y no pierde precisión en órbitas casi circulares.
+
+- **Órbita alcanzada** si `ε < 0` y `perigeo > 100 km`. El instante se localiza con la raíz de `min(perigeo − 100 km, −ε / g0)`, continua y positiva solo cuando se cumplen las dos condiciones.
+- Si al terminar la combustión 2 el cohete está en órbita, la simulación sigue 600 s de vuelo orbital (`DURACION_ORBITAL`) y termina: basta para comprobar que los elementos se conservan. Una vuelta completa son unos 550 000 pasos más con dt = 0,01 s y queda para el integrador de paso adaptativo de la fase 6.
+- El apogeo de la tabla de eventos es la altitud máxima del vuelo simulado (vertical: `v_vertical` cambia de + a −); el apogeo orbital es un elemento orbital y puede no alcanzarse dentro del tramo simulado.
 
 ## Validación
 
@@ -213,7 +237,9 @@ Tests que confirman que el simulador es correcto:
 5. **Masa:** nunca negativa; tras la separación baja exactamente `masaSeca1`.
 6. **Convergencia:** con RK4, reducir `dt` a la mitad reduce el error del apogeo unas 16 veces (orden 4).
 7. **Cierre del presupuesto de Δv:** la identidad de [Pérdidas de Δv](#pérdidas-de-δv) se cumple con un error relativo menor que 10⁻⁶ en todo el ascenso.
-8. **Órbita (2D):** en vuelo balístico fuera de la atmósfera, la energía específica y el momento angular se conservan, y por tanto apogeo y perigeo también.
+8. **Órbita (2D):** en vuelo balístico fuera de la atmósfera, la energía específica y el momento angular se conservan, y por tanto apogeo y perigeo también (error relativo menor que 10⁻⁹ en ε y h, y que 10⁻⁶ en apogeo y perigeo, durante los 600 s de vuelo orbital del Falcon 9).
+
+En 2D se comprueban además la identidad de cierre en todo el vuelo (validación 7), la convergencia de orden 4 (validación 6) y que, sin maniobra, el vuelo 2D reproduce el 1D.
 
 ## Errores corregidos del proyecto Java
 

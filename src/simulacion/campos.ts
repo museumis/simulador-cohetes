@@ -44,7 +44,9 @@ function campoEtapa(i: 0 | 1, c: (typeof CAMPOS_ETAPA)[number]): CampoEntrada {
   };
 }
 
-function campoCohete(clave: 'masaCargaUtil' | 'pausaSeparacion', nombre: string, unidad: string): CampoEntrada {
+type ClaveCohete = 'masaCargaUtil' | 'pausaSeparacion' | 'velocidadManiobra' | 'anguloManiobra';
+
+function campoCohete(clave: ClaveCohete, nombre: string, unidad: string): CampoEntrada {
   return {
     ruta: clave,
     clave,
@@ -55,12 +57,14 @@ function campoCohete(clave: 'masaCargaUtil' | 'pausaSeparacion', nombre: string,
   };
 }
 
-/** Todos los datos numéricos de la entrada: las dos etapas, el cohete y el paso de integración. */
+/** Todos los datos numéricos de la entrada: las dos etapas, el cohete, la maniobra (2D) y el paso de integración. */
 export const CAMPOS_ENTRADA: readonly CampoEntrada[] = [
   ...CAMPOS_ETAPA.map((c) => campoEtapa(0, c)),
   ...CAMPOS_ETAPA.map((c) => campoEtapa(1, c)),
   campoCohete('masaCargaUtil', 'carga útil', 'kg'),
   campoCohete('pausaSeparacion', 'pausa entre etapas', 's'),
+  campoCohete('velocidadManiobra', 'velocidad de la maniobra', 'm/s'),
+  campoCohete('anguloManiobra', 'ángulo de la maniobra', '°'),
   {
     ruta: 'dt',
     clave: 'dt',

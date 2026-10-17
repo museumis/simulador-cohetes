@@ -1,8 +1,11 @@
 import { G0 } from '../fisica/constantes';
-import type { MetodoIntegracion, Muestra, TipoEvento } from '../simulacion/tipos';
+import type { MetodoIntegracion, ModeloVuelo, Muestra, TipoEvento } from '../simulacion/tipos';
 import { formatearNumero } from '../util/formato';
 
-/** Sistema de unidades de la interfaz: SI estricto o unidades prácticas (km, km/h, kN, kPa); la masa siempre en kg. */
+/**
+ * Sistema de unidades de la interfaz: SI estricto o unidades prácticas (km, km/h, kN, kPa y
+ * grados); la masa siempre en kg.
+ */
 export type SistemaUnidades = 'si' | 'practico';
 
 /** Una magnitud que se puede mostrar en la telemetría o en una gráfica. */
@@ -14,6 +17,7 @@ export interface Magnitud {
   practica?: { unidad: string; divisor: number };   // valor práctico = valor SI / divisor
   cifras: number;                                   // cifras significativas en SI
   valor: (m: Muestra) => number;                    // valor SI
+  solo2D?: boolean;                                 // solo se muestra en el modelo 2D
 }
 
 const km = { unidad: 'km', divisor: 1_000 };
@@ -21,12 +25,23 @@ const kg = { unidad: 'kg', divisor: 1 };
 const kN = { unidad: 'kN', divisor: 1_000 };
 const kPa = { unidad: 'kPa', divisor: 1_000 };
 const kmh = { unidad: 'km/h', divisor: 1 / 3.6 };
+const grados = { unidad: '°', divisor: Math.PI / 180 };
+const kmCuadradoS = { unidad: 'km²/s', divisor: 1e6 };
+const kJkg = { unidad: 'kJ/kg', divisor: 1_000 };
 
 /** Todas las magnitudes de una muestra, en el orden de la telemetría. */
 export const MAGNITUDES: readonly Magnitud[] = [
   { id: 'altitud', simbolo: 'h', nombre: 'altitud', unidad: 'm', practica: km, cifras: 6, valor: (m) => m.altitud },
-  { id: 'velocidad', simbolo: 'v', nombre: 'velocidad', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidad },
-  { id: 'aceleracion', simbolo: 'a', nombre: 'aceleración', unidad: 'm/s²', cifras: 4, valor: (m) => m.aceleracion },
+  { id: 'velocidad', simbolo: 'v', nombre: 'velocidad (en 2D, |v|)', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidad },
+  { id: 'aceleracion', simbolo: 'a', nombre: 'aceleración (en 2D, d|v|/dt)', unidad: 'm/s²', cifras: 4, valor: (m) => m.aceleracion },
+  { id: 'x', simbolo: 'x', nombre: 'posición x desde el centro de la Tierra', unidad: 'm', practica: km, cifras: 7, valor: (m) => m.x, solo2D: true },
+  { id: 'y', simbolo: 'y', nombre: 'posición y desde el centro de la Tierra', unidad: 'm', practica: km, cifras: 7, valor: (m) => m.y, solo2D: true },
+  { id: 'alcance', simbolo: 'alc', nombre: 'alcance sobre la superficie', unidad: 'm', practica: km, cifras: 6, valor: (m) => m.alcance, solo2D: true },
+  { id: 'vVertical', simbolo: 'v_v', nombre: 'velocidad vertical', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidadVertical, solo2D: true },
+  { id: 'vHorizontal', simbolo: 'v_h', nombre: 'velocidad horizontal', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidadHorizontal, solo2D: true },
+  { id: 'gamma', simbolo: 'γ', nombre: 'ángulo de trayectoria sobre la horizontal', unidad: 'rad', practica: grados, cifras: 4, valor: (m) => m.anguloTrayectoria, solo2D: true },
+  { id: 'eje', simbolo: 'θ', nombre: 'ángulo del empuje (eje) sobre la horizontal', unidad: 'rad', practica: grados, cifras: 4, valor: (m) => m.anguloEmpuje, solo2D: true },
+  { id: 'ataque', simbolo: 'α', nombre: 'ángulo de ataque: del vector velocidad al eje', unidad: 'rad', practica: grados, cifras: 3, valor: (m) => m.anguloAtaque, solo2D: true },
   { id: 'masa', simbolo: 'm', nombre: 'masa', unidad: 'kg', cifras: 6, valor: (m) => m.masa },
   { id: 'empuje', simbolo: 'F', nombre: 'empuje', unidad: 'N', practica: kN, cifras: 4, valor: (m) => m.empuje },
   { id: 'caudal', simbolo: 'ṁ', nombre: 'caudal másico', unidad: 'kg/s', cifras: 4, valor: (m) => m.caudal },
@@ -44,7 +59,24 @@ export const MAGNITUDES: readonly Magnitud[] = [
   { id: 'perdGrav', simbolo: 'Δv g', nombre: 'pérdida por gravedad', unidad: 'm/s', cifras: 5, valor: (m) => m.perdidas.gravedad },
   { id: 'perdArr', simbolo: 'Δv D', nombre: 'pérdida por arrastre', unidad: 'm/s', cifras: 5, valor: (m) => m.perdidas.arrastre },
   { id: 'perdContra', simbolo: 'Δv p', nombre: 'pérdida por contrapresión', unidad: 'm/s', cifras: 5, valor: (m) => m.perdidas.contrapresion },
+  { id: 'perdDir', simbolo: 'Δv α', nombre: 'pérdida por dirección', unidad: 'm/s', cifras: 5, valor: (m) => m.perdidas.direccion, solo2D: true },
+  { id: 'energia', simbolo: 'ε', nombre: 'energía orbital específica', unidad: 'J/kg', practica: kJkg, cifras: 6, valor: (m) => m.orbita.energia, solo2D: true },
+  { id: 'momento', simbolo: '|r×v|', nombre: 'momento angular específico', unidad: 'm²/s', practica: kmCuadradoS, cifras: 6, valor: (m) => m.orbita.momentoAngular, solo2D: true },
+  { id: 'semieje', simbolo: 'a_orb', nombre: 'semieje mayor', unidad: 'm', practica: km, cifras: 6, valor: (m) => m.orbita.semiejeMayor, solo2D: true },
+  { id: 'excentricidad', simbolo: 'e', nombre: 'excentricidad', unidad: '', cifras: 4, valor: (m) => m.orbita.excentricidad, solo2D: true },
+  { id: 'perigeo', simbolo: 'h_p', nombre: 'altitud del perigeo', unidad: 'm', practica: km, cifras: 6, valor: (m) => m.orbita.altitudPerigeo, solo2D: true },
+  { id: 'apogeoOrb', simbolo: 'h_a', nombre: 'altitud del apogeo orbital (— si no es cerrada)', unidad: 'm', practica: km, cifras: 6, valor: (m) => m.orbita.altitudApogeo, solo2D: true },
 ];
+
+/** Magnitudes que se muestran en un modelo de vuelo. */
+export function magnitudesDelModelo(modelo: ModeloVuelo): Magnitud[] {
+  return MAGNITUDES.filter((m) => modelo === '2D' || !m.solo2D);
+}
+
+export const NOMBRES_MODELO: Record<ModeloVuelo, string> = {
+  '1D': '1D vertical',
+  '2D': '2D en el plano',
+};
 
 /** Magnitudes de las gráficas por defecto. */
 export const GRAFICAS_POR_DEFECTO = ['altitud', 'velocidad', 'aceleracion', 'masa', 'q', 'mach'] as const;
@@ -81,12 +113,15 @@ export function textoConUnidad(valor: number, unidadSI: 'kg' | 'N' | 'm' | 'Pa',
 
 export const NOMBRES_EVENTOS: Record<TipoEvento, string> = {
   despegue: 'despegue',
+  inicioManiobra: 'inicio maniobra',
+  finManiobra: 'giro gravitatorio',
   mach1: 'Mach 1',
   maxQ: 'Max-Q',
   finCombustion1: 'fin comb. 1',
   separacion: 'separación',
   encendido2: 'encendido 2',
   finCombustion2: 'fin comb. 2',
+  orbita: 'órbita',
   apogeo: 'apogeo',
   impacto: 'impacto',
 };

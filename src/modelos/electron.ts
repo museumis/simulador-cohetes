@@ -15,6 +15,8 @@ import type { Cohete } from '../simulacion/tipos';
  *   regímenes). Isp a nivel del mar de la etapa 2: valor nominal, se enciende fuera de la
  *   atmósfera.
  * - Longitud de la etapa 2: 2,4 m de etapa + 2,5 m de cofia. Coeficientes de arrastre.
+ * - Maniobra de inclinación ajustada con el modelo 2D (sin rotación terrestre ni etapa de
+ *   apogeo): 9,5° a 60 m/s dejan la etapa 2 en una órbita de unos 170 × 228 km.
  */
 export const ELECTRON: Cohete = {
   nombre: 'Electron',
@@ -42,4 +44,6 @@ export const ELECTRON: Cohete = {
   ],
   masaCargaUtil: 300,
   pausaSeparacion: 3,
+  velocidadManiobra: 60,
+  anguloManiobra: 9.5,
 };

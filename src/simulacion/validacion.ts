@@ -1,7 +1,10 @@
-import type { Cohete, MetodoIntegracion, OpcionesSimulacion } from './tipos';
+import type { Cohete, MetodoIntegracion, ModeloVuelo, OpcionesSimulacion } from './tipos';
 
 /** Métodos de integración admitidos. */
 export const METODOS: readonly MetodoIntegracion[] = ['rk4', 'eulerSimplectico'];
+
+/** Modelos de vuelo admitidos. */
+export const MODELOS_VUELO: readonly ModeloVuelo[] = ['1D', '2D'];
 
 /** Paso de integración admitido (s). */
 export const DT_MINIMO = 1e-4;
@@ -65,6 +68,12 @@ function comprobar(errores: ErrorValidacion[], campo: string, valor: unknown, l:
   });
 }
 
+function comprobarOpcion(errores: ErrorValidacion[], campo: string, valor: unknown, admitidos: readonly string[]): void {
+  if (admitidos.includes(valor as string)) return;
+  const rango = `{${admitidos.join(', ')}}`;
+  errores.push({ campo, valor, rango, mensaje: `${campo} = ${String(valor)}: no es ninguno de los admitidos ${rango}` });
+}
+
 const positivo = (unidad: string): Limites => ({ min: 0, max: Infinity, minIncluido: false, maxIncluido: false, unidad });
 const noNegativo = (unidad: string): Limites => ({ min: 0, max: Infinity, minIncluido: true, maxIncluido: false, unidad });
 
@@ -92,21 +101,22 @@ export function validarCohete(cohete: Cohete): ErrorValidacion[] {
   });
   comprobar(errores, 'masaCargaUtil', cohete.masaCargaUtil, noNegativo('kg'));
   comprobar(errores, 'pausaSeparacion', cohete.pausaSeparacion, noNegativo('s'));
+  comprobar(errores, 'velocidadManiobra', cohete.velocidadManiobra, positivo('m/s'));
+  comprobar(errores, 'anguloManiobra', cohete.anguloManiobra, {
+    min: 0,
+    max: 90,
+    minIncluido: false,
+    maxIncluido: true,
+    unidad: '°',
+  });
   return errores;
 }
 
 /** Comprueba la configuración de la simulación. */
 export function validarOpciones(opciones: OpcionesSimulacion): ErrorValidacion[] {
   const errores: ErrorValidacion[] = [];
-  if (!METODOS.includes(opciones.metodo)) {
-    const rango = `{${METODOS.join(', ')}}`;
-    errores.push({
-      campo: 'metodo',
-      valor: opciones.metodo,
-      rango,
-      mensaje: `metodo = ${String(opciones.metodo)}: no es ninguno de los admitidos ${rango}`,
-    });
-  }
+  comprobarOpcion(errores, 'modelo', opciones.modelo, MODELOS_VUELO);
+  comprobarOpcion(errores, 'metodo', opciones.metodo, METODOS);
   comprobar(errores, 'dt', opciones.dt, {
     min: DT_MINIMO,
     max: DT_MAXIMO,

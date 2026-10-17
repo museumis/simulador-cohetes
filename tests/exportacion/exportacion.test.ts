@@ -5,7 +5,7 @@ import { graficasSVG } from '../../src/exportacion/svg';
 import { codificarURL, decodificarURL } from '../../src/exportacion/url';
 import { FALCON_9 } from '../../src/modelos/falcon9';
 import type { Entrada } from '../../src/simulacion/campos';
-import { OPCIONES_POR_DEFECTO, simular } from '../../src/simulacion/simular';
+import { MANIOBRA_POR_DEFECTO, OPCIONES_POR_DEFECTO, simular } from '../../src/simulacion/simular';
 import { COHETE_PRUEBA } from '../simulacion/cohetes';
 
 const entrada: Entrada = {
@@ -23,6 +23,8 @@ describe('CSV', () => {
     expect(lineas.length).toBe(r.muestras.length + 1);
     expect(cabecera[0]).toBe('t [s]');
     expect(cabecera).toContain('presionDinamica [Pa]');
+    expect(cabecera).toContain('alcance [m]');
+    expect(cabecera).toContain('altitudPerigeo [m]');
     expect(cabecera.at(-1)).toBe('evento');
     for (const l of lineas) expect(l.split(',').length).toBe(cabecera.length);
   });
@@ -67,13 +69,28 @@ describe('JSON', () => {
     delete datos.opciones;
     expect(leerJSON(JSON.stringify(datos)).opciones).toEqual(OPCIONES_POR_DEFECTO);
   });
+
+  it('modelo 2D: ida y vuelta con la maniobra, y archivos anteriores sin ella', () => {
+    const plana: Entrada = { cohete: FALCON_9, opciones: { ...OPCIONES_POR_DEFECTO, modelo: '2D', duracionMaxima: 300 } };
+    const texto = exportarJSON(plana, simular(plana.cohete, plana.opciones));
+    expect(JSON.parse(texto).modelo.dimension).toBe('2D');
+    expect(leerJSON(texto)).toEqual(plana);
+    const antiguo = JSON.parse(exportarJSON(entrada, r));
+    delete antiguo.cohete.velocidadManiobra;
+    delete antiguo.cohete.anguloManiobra;
+    const leido = leerJSON(JSON.stringify(antiguo));
+    expect([leido.cohete.velocidadManiobra, leido.cohete.anguloManiobra]).toEqual([
+      MANIOBRA_POR_DEFECTO.velocidadManiobra,
+      MANIOBRA_POR_DEFECTO.anguloManiobra,
+    ]);
+  });
 });
 
 describe('URL', () => {
   it('ida y vuelta exacta, también con decimales sin representación finita', () => {
     const rara: Entrada = {
-      cohete: { ...FALCON_9, nombre: 'Prueba & ñ', masaCargaUtil: 0.1 + 0.2 },
-      opciones: { ...OPCIONES_POR_DEFECTO, metodo: 'eulerSimplectico', dt: 1 / 3 },
+      cohete: { ...FALCON_9, nombre: 'Prueba & ñ', masaCargaUtil: 0.1 + 0.2, anguloManiobra: 1 / 7 },
+      opciones: { ...OPCIONES_POR_DEFECTO, modelo: '2D', metodo: 'eulerSimplectico', dt: 1 / 3 },
     };
     const leida = decodificarURL(`?${codificarURL(rara)}`, entrada);
     expect(leida).toEqual(rara);
@@ -86,6 +103,9 @@ describe('URL', () => {
     expect(parcial.cohete.etapas[1].cd).toBeNaN();
     expect(parcial.cohete.etapas[0]).toEqual(COHETE_PRUEBA.etapas[0]);
     expect(parcial.opciones.dt).toBe(0.02);
+    // Un enlace anterior al modelo 2D no lleva ni el modelo ni la maniobra.
+    expect(parcial.opciones.modelo).toBe('1D');
+    expect(parcial.cohete.velocidadManiobra).toBe(COHETE_PRUEBA.velocidadManiobra);
   });
 });
 
