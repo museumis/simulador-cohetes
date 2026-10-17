@@ -36,8 +36,10 @@ Del cohete en conjunto: `masaCargaUtil` (kg) y `pausaSeparacion` (s, tiempo entr
 ## Gravedad
 
 ```
-g(h) = g0 · (R / (R + h))²
+g(h) = μ / (R + h)²
 ```
+
+En la superficie da μ/R² ≈ 9,8203 m/s², no g0. Se usa μ en lugar de `g0 · (R/(R+h))²` para que el modelo 1D sea coherente con la energía `v²/2 − μ/(R+h)` del test de validación 3 y con la gravedad vectorial del modelo 2D. g0 solo interviene en la velocidad de expulsión.
 
 ## Motor
 
@@ -201,7 +203,7 @@ Tests que confirman que el simulador es correcto:
 1. **Sin gravedad ni arrastre:** la velocidad final simulada coincide con la Δv de Tsiolkovski (Isp constante, igual al de vacío) con un error relativo menor que 10⁻⁶.
 2. **Sin despegue:** con empuje menor que el peso, h se mantiene en 0 durante toda la combustión.
 3. **Energía en vuelo balístico sin arrastre:** `v²/2 − μ/(R+h)` constante con un error relativo menor que 10⁻⁶.
-4. **Caída libre cerca del suelo:** sin empuje ni arrastre, desde poca altura, `h(t) ≈ h0 − ½·g0·t²`.
+4. **Caída libre cerca del suelo:** sin empuje ni arrastre, desde poca altura, `h(t) ≈ h0 − ½·g(h0)·t²`.
 5. **Masa:** nunca negativa; tras la separación baja exactamente `masaSeca1`.
 6. **Convergencia:** con RK4, reducir `dt` a la mitad reduce el error del apogeo unas 16 veces (orden 4).
 7. **Cierre del presupuesto de Δv:** la identidad de [Pérdidas de Δv](#pérdidas-de-δv) se cumple con un error relativo menor que 10⁻⁶ en todo el ascenso.
