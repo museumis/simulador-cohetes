@@ -1,0 +1,20 @@
+:root {
+  color-scheme: light dark;
+  --fondo: #ffffff;
+  --texto: #1a1a1a;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #111111;
+    --texto: #d8d8d8;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  background: var(--fondo);
+  color: var(--texto);
+}
