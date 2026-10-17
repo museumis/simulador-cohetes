@@ -1,5 +1,5 @@
 import { G0 } from '../fisica/constantes';
-import type { Muestra, TipoEvento } from '../simulacion/tipos';
+import type { MetodoIntegracion, Muestra, TipoEvento } from '../simulacion/tipos';
 import { formatearNumero } from '../util/formato';
 
 /** Sistema de unidades de la interfaz: SI estricto o unidades prácticas (km, t, kN, kPa). */
@@ -88,4 +88,10 @@ export const NOMBRES_EVENTOS: Record<TipoEvento, string> = {
   finCombustion2: 'fin comb. 2',
   apogeo: 'apogeo',
   impacto: 'impacto',
+};
+
+/** Nombre de cada método de integración en la interfaz. */
+export const NOMBRES_METODO: Record<MetodoIntegracion, string> = {
+  rk4: 'RK4',
+  eulerSimplectico: 'Euler simpléctico',
 };

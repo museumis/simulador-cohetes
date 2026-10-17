@@ -1,28 +1,19 @@
 import { calcularDerivados } from '../analisis/derivados';
 import { copiarCohete, MODELOS } from '../modelos';
+import { buscarCampo, CAMPOS_ETAPA, copiarEntrada, type Entrada } from '../simulacion/campos';
 import { OPCIONES_POR_DEFECTO } from '../simulacion/simular';
-import type { Cohete, Etapa, OpcionesSimulacion } from '../simulacion/tipos';
-import { validarCohete, validarOpciones, type ErrorValidacion } from '../simulacion/validacion';
+import type { MetodoIntegracion } from '../simulacion/tipos';
+import { METODOS, validarCohete, validarOpciones, type ErrorValidacion } from '../simulacion/validacion';
 import { formatearNumero } from '../util/formato';
-import { textoConUnidad, type SistemaUnidades } from './magnitudes';
+import { NOMBRES_METODO, textoConUnidad, type SistemaUnidades } from './magnitudes';
 
 /** Retardo entre la última edición y el recálculo (ms). */
 const RETARDO_RECALCULO = 250;
 
-const CAMPOS_ETAPA: readonly { clave: keyof Etapa; nombre: string; unidad: string }[] = [
-  { clave: 'masaSeca', nombre: 'masa seca', unidad: 'kg' },
-  { clave: 'masaPropelente', nombre: 'masa de propelente', unidad: 'kg' },
-  { clave: 'empujeVacio', nombre: 'empuje en vacío', unidad: 'N' },
-  { clave: 'ispNivelMar', nombre: 'Isp a nivel del mar', unidad: 's' },
-  { clave: 'ispVacio', nombre: 'Isp en vacío', unidad: 's' },
-  { clave: 'diametro', nombre: 'diámetro', unidad: 'm' },
-  { clave: 'longitud', nombre: 'longitud', unidad: 'm' },
-  { clave: 'cd', nombre: 'Cd', unidad: '—' },
-];
-
 export interface Parametros {
-  cohete(): Cohete;
-  opciones(): Partial<OpcionesSimulacion>;
+  entrada(): Entrada;
+  /** Sustituye toda la entrada (desde la URL o un JSON), la valida y la envía si es válida. */
+  cargar(entrada: Entrada): void;
   setSistema(sistema: SistemaUnidades): void;
   /** Muestra un error de la simulación (o lo borra con null). */
   mostrarError(mensaje: string | null): void;
@@ -63,10 +54,9 @@ function filaTabla(tabla: HTMLTableElement | HTMLTableSectionElement, celdas: (s
  */
 export function crearParametros(
   contenedor: HTMLElement,
-  alCambiar: (cohete: Cohete, opciones: Partial<OpcionesSimulacion>) => void,
+  alCambiar: (entrada: Entrada) => void,
 ): Parametros {
-  let cohete = copiarCohete(MODELOS[0]!.cohete);
-  let opciones: Partial<OpcionesSimulacion> = { dt: OPCIONES_POR_DEFECTO.dt };
+  let entradaActual: Entrada = { cohete: copiarCohete(MODELOS[0]!.cohete), opciones: { ...OPCIONES_POR_DEFECTO } };
   let sistema: SistemaUnidades = 'si';
   let temporizador: ReturnType<typeof setTimeout> | undefined;
 
@@ -77,7 +67,11 @@ export function crearParametros(
 
   const selector = document.createElement('select');
   selector.title = 'Modelo predefinido';
-  selector.append(...MODELOS.map((m) => new Option(m.cohete.nombre, m.id)));
+  // La opción vacía queda elegida cuando la entrada viene de una URL o de un JSON.
+  const personalizado = new Option('(cargado)', '');
+  personalizado.hidden = true;
+  selector.append(personalizado, ...MODELOS.map((m) => new Option(m.cohete.nombre, m.id)));
+  selector.value = MODELOS[0]!.id;
   const filaModelo = document.createElement('label');
   filaModelo.className = 'fila-modelo';
   filaModelo.append('cohete ', selector);
@@ -95,53 +89,53 @@ export function crearParametros(
   tituloDerivados.textContent = 'VALORES DERIVADOS';
   const configuracion = document.createElement('div');
   configuracion.className = 'nota';
-  configuracion.textContent = 'modelo 1D vertical · atmósfera exponencial · integrador RK4 de paso fijo';
+  configuracion.textContent = 'modelo 1D vertical · atmósfera exponencial · integrador de paso fijo';
+
+  const selectorMetodo = document.createElement('select');
+  selectorMetodo.title = 'Método de integración';
+  selectorMetodo.dataset.campo = 'metodo';
+  selectorMetodo.append(...METODOS.map((m) => new Option(NOMBRES_METODO[m], m)));
 
   contenedor.append(titulo, filaModelo, configuracion, tablaEntrada, errores, errorSimulacion, tituloDerivados, tablaDerivados);
 
   const entradas: HTMLInputElement[] = [];
 
   function construirEntrada(): void {
+    const { cohete, opciones } = entradaActual;
     tablaEntrada.replaceChildren();
     entradas.length = 0;
     const cab = tablaEntrada.createTHead();
     filaTabla(cab, ['', 'etapa 1', 'etapa 2', 'unidad'], false);
     const cuerpo = tablaEntrada.createTBody();
     for (const c of CAMPOS_ETAPA) {
-      const e0 = entrada(`etapas[0].${c.clave}`, cohete.etapas[0][c.clave], `etapa 1: ${c.nombre} [${c.unidad}]`);
-      const e1 = entrada(`etapas[1].${c.clave}`, cohete.etapas[1][c.clave], `etapa 2: ${c.nombre} [${c.unidad}]`);
+      const e0 = entrada(`etapas[0].${c.clave}`, cohete.etapas[0][c.clave], `etapa 1: ${c.nombre} [${c.unidad || '—'}]`);
+      const e1 = entrada(`etapas[1].${c.clave}`, cohete.etapas[1][c.clave], `etapa 2: ${c.nombre} [${c.unidad || '—'}]`);
       entradas.push(e0, e1);
-      filaTabla(cuerpo, [c.nombre, e0, e1, c.unidad], false);
+      filaTabla(cuerpo, [c.nombre, e0, e1, c.unidad || '—'], false);
     }
     const carga = entrada('masaCargaUtil', cohete.masaCargaUtil, 'carga útil [kg]');
     const pausa = entrada('pausaSeparacion', cohete.pausaSeparacion, 'pausa entre etapas [s]');
-    const dt = entrada('dt', opciones.dt ?? OPCIONES_POR_DEFECTO.dt, 'paso de integración [s]');
+    const dt = entrada('dt', opciones.dt, 'paso de integración [s]');
     entradas.push(carga, pausa, dt);
     filaTabla(cuerpo, ['carga útil', carga, '', 'kg'], false);
     filaTabla(cuerpo, ['pausa entre etapas', pausa, '', 's'], false);
+    filaTabla(cuerpo, ['método de integración', selectorMetodo, '', ''], false);
     filaTabla(cuerpo, ['paso de integración dt', dt, '', 's'], false);
+    selectorMetodo.value = opciones.metodo;
     for (const e of entradas) e.addEventListener('input', () => alEditar(e));
   }
 
   function aplicar(campo: string, valor: number): void {
-    const etapa = /^etapas\[(\d)\]\.(\w+)$/.exec(campo);
-    if (etapa) {
-      const i = Number(etapa[1]) as 0 | 1;
-      cohete.etapas[i] = { ...cohete.etapas[i], [etapa[2]!]: valor };
-    } else if (campo === 'masaCargaUtil' || campo === 'pausaSeparacion') {
-      cohete = { ...cohete, [campo]: valor };
-    } else if (campo === 'dt') {
-      opciones = { ...opciones, dt: valor };
-    }
+    entradaActual = buscarCampo(campo).escribir(entradaActual, valor);
   }
 
   function validar(): ErrorValidacion[] {
-    return [...validarCohete(cohete), ...validarOpciones({ ...OPCIONES_POR_DEFECTO, ...opciones })];
+    return [...validarCohete(entradaActual.cohete), ...validarOpciones(entradaActual.opciones)];
   }
 
   function pintarErrores(lista: ErrorValidacion[]): void {
     const porCampo = new Map(lista.map((e) => [e.campo, e]));
-    for (const e of entradas) {
+    for (const e of [...entradas, selectorMetodo]) {
       const error = porCampo.get(e.dataset.campo ?? '');
       e.classList.toggle('invalido', error !== undefined);
       e.setAttribute('aria-invalid', String(error !== undefined));
@@ -161,7 +155,7 @@ export function crearParametros(
       filaTabla(tablaDerivados, ['Corregir los datos marcados para ver los valores derivados.'], false);
       return;
     }
-    const d = calcularDerivados(cohete);
+    const d = calcularDerivados(entradaActual.cohete);
     const masa = (kg: number): string => textoConUnidad(kg, 'kg', 6, sistema);
     const cuerpo = tablaDerivados.createTBody();
     filaTabla(cuerpo, ['masa al despegue', masa(d.masaDespegue), '']);
@@ -190,7 +184,7 @@ export function crearParametros(
     pintarDerivados(lista.length === 0);
     clearTimeout(temporizador);
     if (lista.length > 0) return;
-    const enviar = (): void => alCambiar(copiarCohete(cohete), { ...opciones });
+    const enviar = (): void => alCambiar(copiarEntrada(entradaActual));
     if (conRetardo) temporizador = setTimeout(enviar, RETARDO_RECALCULO);
     else enviar();
   }
@@ -198,8 +192,13 @@ export function crearParametros(
   selector.addEventListener('change', () => {
     const modelo = MODELOS.find((m) => m.id === selector.value);
     if (!modelo) return;
-    cohete = copiarCohete(modelo.cohete);
+    entradaActual = { ...entradaActual, cohete: copiarCohete(modelo.cohete) };
     construirEntrada();
+    revisar(false);
+  });
+
+  selectorMetodo.addEventListener('change', () => {
+    entradaActual = { ...entradaActual, opciones: { ...entradaActual.opciones, metodo: selectorMetodo.value as MetodoIntegracion } };
     revisar(false);
   });
 
@@ -208,8 +207,14 @@ export function crearParametros(
   pintarDerivados(validar().length === 0);
 
   return {
-    cohete: () => copiarCohete(cohete),
-    opciones: () => ({ ...opciones }),
+    entrada: () => copiarEntrada(entradaActual),
+    cargar(nueva) {
+      entradaActual = copiarEntrada(nueva);
+      const modelo = MODELOS.find((m) => m.cohete.nombre === nueva.cohete.nombre);
+      selector.value = modelo ? modelo.id : '';
+      construirEntrada();
+      revisar(false);
+    },
     setSistema(nuevo) {
       sistema = nuevo;
       pintarDerivados(validar().length === 0);

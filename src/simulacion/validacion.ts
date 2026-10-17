@@ -1,4 +1,7 @@
-import type { Cohete, OpcionesSimulacion } from './tipos';
+import type { Cohete, MetodoIntegracion, OpcionesSimulacion } from './tipos';
+
+/** Métodos de integración admitidos. */
+export const METODOS: readonly MetodoIntegracion[] = ['rk4', 'eulerSimplectico'];
 
 /** Paso de integración admitido (s). */
 export const DT_MINIMO = 1e-4;
@@ -95,6 +98,15 @@ export function validarCohete(cohete: Cohete): ErrorValidacion[] {
 /** Comprueba la configuración de la simulación. */
 export function validarOpciones(opciones: OpcionesSimulacion): ErrorValidacion[] {
   const errores: ErrorValidacion[] = [];
+  if (!METODOS.includes(opciones.metodo)) {
+    const rango = `{${METODOS.join(', ')}}`;
+    errores.push({
+      campo: 'metodo',
+      valor: opciones.metodo,
+      rango,
+      mensaje: `metodo = ${String(opciones.metodo)}: no es ninguno de los admitidos ${rango}`,
+    });
+  }
   comprobar(errores, 'dt', opciones.dt, {
     min: DT_MINIMO,
     max: DT_MAXIMO,

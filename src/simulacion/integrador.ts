@@ -1,8 +1,17 @@
 /** Derivada de un sistema autónomo: escribe dy/dt en `dy` a partir de `y`. */
 export type FuncionDerivada = (y: Float64Array, dy: Float64Array) => void;
 
-/** Paso RK4 sin reservar memoria en cada llamada. */
-export interface IntegradorRK4 {
+/** Métodos de integración disponibles. */
+export type MetodoIntegracion = 'rk4' | 'eulerSimplectico';
+
+/** Orden de convergencia global de cada método, para la extrapolación de Richardson. */
+export const ORDEN_METODO: Readonly<Record<MetodoIntegracion, number>> = {
+  rk4: 4,
+  eulerSimplectico: 1,
+};
+
+/** Un paso de integración de paso fijo, sin reservar memoria en cada llamada. */
+export interface Integrador {
   /**
    * Avanza un paso `h` desde `y`. `dy0` es la derivada en `y` (k1), ya calculada por quien
    * llama para reutilizar la del final del paso anterior. El resultado se escribe en `salida`,
@@ -12,7 +21,7 @@ export interface IntegradorRK4 {
 }
 
 /** Crea un integrador RK4 clásico para un estado de `n` componentes. */
-export function crearIntegradorRK4(n: number): IntegradorRK4 {
+export function crearIntegradorRK4(n: number): Integrador {
   const k2 = new Float64Array(n);
   const k3 = new Float64Array(n);
   const k4 = new Float64Array(n);
@@ -33,6 +42,29 @@ export function crearIntegradorRK4(n: number): IntegradorRK4 {
       }
     },
   };
+}
+
+/**
+ * Crea un integrador de Euler simpléctico (semiimplícito) de orden 1: todas las componentes
+ * avanzan con la derivada al principio del paso salvo la posición, que usa la velocidad ya
+ * actualizada. Conserva una energía modificada en el vuelo balístico, al contrario que Euler
+ * explícito; sirve para comparar con RK4.
+ * @param posicion índice de la posición en el estado
+ * @param velocidad índice de su velocidad
+ */
+export function crearEulerSimplectico(n: number, posicion: number, velocidad: number): Integrador {
+  return {
+    paso(_f, y, dy0, h, salida) {
+      for (let i = 0; i < n; i++) salida[i] = y[i]! + h * dy0[i]!;
+      // En la plataforma la velocidad sigue siendo 0 y la posición no cambia.
+      salida[posicion] = y[posicion]! + h * salida[velocidad]!;
+    },
+  };
+}
+
+/** Crea el integrador de un método para un estado con posición y velocidad. */
+export function crearIntegrador(metodo: MetodoIntegracion, n: number, posicion: number, velocidad: number): Integrador {
+  return metodo === 'rk4' ? crearIntegradorRK4(n) : crearEulerSimplectico(n, posicion, velocidad);
 }
 
 /**

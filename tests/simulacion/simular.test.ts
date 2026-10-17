@@ -228,6 +228,56 @@ describe('límite de duración', () => {
   });
 });
 
+describe('método de integración', () => {
+  it('Euler simpléctico: misma secuencia de eventos y orden 1 en el apogeo', () => {
+    const [a1, a2, a3] = [0.04, 0.02, 0.01].map((dt) => simular(COHETE_PRUEBA, { metodo: 'eulerSimplectico', dt })) as [
+      ResultadoSimulacion,
+      ResultadoSimulacion,
+      ResultadoSimulacion,
+    ];
+    expect(a1.diagnostico.metodo).toBe('eulerSimplectico');
+    expect(a1.eventos.map((e) => e.tipo)).toEqual(nominal.eventos.map((e) => e.tipo));
+    const cociente = (a1.resumen.apogeo - a2.resumen.apogeo) / (a2.resumen.apogeo - a3.resumen.apogeo);
+    expect(cociente).toBeGreaterThan(1.9);
+    expect(cociente).toBeLessThan(2.1);
+    // Con dt = 0,01 s el apogeo se aleja del de RK4 bastante más que el error de RK4.
+    expect(Math.abs(a3.resumen.apogeo - nominal.resumen.apogeo)).toBeGreaterThan(1);
+  });
+
+  it('Euler simpléctico conserva la masa exacta y el presupuesto de Δv', () => {
+    const r = simular(COHETE_PRUEBA, { metodo: 'eulerSimplectico' });
+    esperarCercano(evento(r, 'finCombustion2').estado.masa, e2.masaSeca + COHETE_PRUEBA.masaCargaUtil);
+    const tApogeo = evento(r, 'apogeo').t;
+    for (const m of r.muestras.filter((x) => x.t <= tApogeo)) {
+      const p = m.perdidas;
+      const balance = m.deltaVIdeal - p.gravedad - p.arrastre - p.contrapresion;
+      expect(Math.abs(m.velocidad - balance)).toBeLessThanOrEqual(1e-6 * Math.max(m.deltaVIdeal, 1));
+    }
+  });
+});
+
+describe('detenerEnApogeo', () => {
+  it('termina en el apogeo balístico con los mismos valores que el vuelo completo', () => {
+    const r = simular(COHETE_PRUEBA, { detenerEnApogeo: true });
+    expect(r.eventos.map((e) => e.tipo)).not.toContain('impacto');
+    expect(r.eventos.at(-1)!.tipo).toBe('apogeo');
+    expect(r.resumen.apogeo).toBe(nominal.resumen.apogeo);
+    expect(r.resumen.maxQ).toBe(nominal.resumen.maxQ);
+    expect(evento(r, 'apogeo').t).toBe(evento(nominal, 'apogeo').t);
+    expect(r.diagnostico.pasos).toBeLessThan(nominal.diagnostico.pasos * 0.6);
+  });
+
+  it('no se detiene en un apogeo anterior al encendido de la etapa 2', () => {
+    // Con una pausa larga el cohete llega al apogeo y cae antes de encender la etapa 2.
+    const cohete = { ...COHETE_PRUEBA, pausaSeparacion: 400 };
+    const completo = simular(cohete);
+    const detenido = simular(cohete, { detenerEnApogeo: true });
+    expect(completo.eventos.filter((e) => e.tipo === 'encendido2').length).toBe(1);
+    expect(detenido.eventos.map((e) => e.tipo)).toContain('finCombustion2');
+    expect(detenido.resumen.apogeo).toBe(completo.resumen.apogeo);
+  });
+});
+
 describe('valores exactos en los eventos', () => {
   it('v = 0 en el apogeo y h = 0 en el impacto, sin residuo de la raíz', () => {
     expect(evento(nominal, 'apogeo').estado.velocidad).toBe(0);

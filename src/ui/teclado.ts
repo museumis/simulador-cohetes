@@ -1,7 +1,10 @@
 import { VELOCIDADES, type Reproductor } from '../reproduccion/reproductor';
 
 /** Atajos de teclado de docs/INTERFAZ.md. No actúan mientras se escribe en un campo. */
-export function instalarTeclado(reproductor: Reproductor, alternarParametros: () => void): void {
+export function instalarTeclado(
+  reproductor: Reproductor,
+  acciones: { alternarParametros(): void; alternarExportar(): void },
+): void {
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const destino = e.target as HTMLElement | null;
@@ -26,7 +29,11 @@ export function instalarTeclado(reproductor: Reproductor, alternarParametros: ()
         break;
       case 'p':
       case 'P':
-        alternarParametros();
+        acciones.alternarParametros();
+        break;
+      case 'e':
+      case 'E':
+        acciones.alternarExportar();
         break;
       default: {
         const indice = Number(e.key) - 1;

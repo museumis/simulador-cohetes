@@ -70,14 +70,14 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 ## Fase 4: herramienta de análisis
 
-- [ ] Panel de presupuesto de Δv con comprobación de cierre.
-- [ ] Panel de diagnóstico numérico: pasos, tiempo de cálculo, deriva de energía y error estimado por Richardson.
-- [ ] Selector de método de integración (RK4, Euler simpléctico para comparar) y de dt.
-- [ ] Exportar a CSV (todas las muestras y variables) y JSON (entrada, configuración y eventos).
-- [ ] Exportar gráficas a SVG.
-- [ ] Codificar los parámetros en la URL para reproducir y compartir una simulación exacta.
-- [ ] Comparar dos simulaciones: series superpuestas y tabla de diferencias.
-- [ ] Barrido de un parámetro: un parámetro variando en un rango → gráfica de apogeo, velocidad final o Max-Q frente a ese parámetro.
+- [x] Panel de presupuesto de Δv con comprobación de cierre.
+- [x] Panel de diagnóstico numérico: pasos, tiempo de cálculo, deriva de energía y error estimado por Richardson.
+- [x] Selector de método de integración (RK4, Euler simpléctico para comparar) y de dt.
+- [x] Exportar a CSV (todas las muestras y variables) y JSON (entrada, configuración y eventos).
+- [x] Exportar gráficas a SVG.
+- [x] Codificar los parámetros en la URL para reproducir y compartir una simulación exacta.
+- [x] Comparar dos simulaciones: series superpuestas y tabla de diferencias.
+- [x] Barrido de un parámetro: un parámetro variando en un rango → gráfica de apogeo, velocidad final o Max-Q frente a ese parámetro.
 
 **Hecho cuando:** se puede justificar numéricamente cada resultado (de dónde sale cada m/s y qué error tiene).
 
@@ -110,7 +110,7 @@ Cada fase termina con algo que se puede ver o probar. Los detalles de la física
 
 - [ ] Guardar cohetes propios en `localStorage`.
 - [ ] PWA para funcionar sin conexión.
-- [ ] Web Worker para el cálculo si el modo 2D o los barridos lo hacen lento.
+- [ ] Web Worker para el cálculo si el modo 2D o los barridos lo hacen lento. (Richardson y los barridos ya van en un worker desde la fase 4; falta la simulación principal.)
 
 ## Fuera de alcance
 

@@ -47,6 +47,7 @@ describe('validación de la entrada', () => {
     expect(campos({ altitudInicial: -1 })).toEqual(['altitudInicial']);
     expect(campos({ velocidadInicial: -1 })).toEqual(['velocidadInicial']);
     expect(campos({ altitudInicial: 100, velocidadInicial: -1 })).toEqual([]);
+    expect(campos({ metodo: 'euler' as never })).toEqual(['metodo']);
   });
 
   it('simular lanza ErrorEntrada con todos los errores juntos', () => {

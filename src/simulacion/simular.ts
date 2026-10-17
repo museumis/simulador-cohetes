@@ -4,7 +4,7 @@ import { MU_TIERRA, RADIO_TIERRA } from '../fisica/constantes';
 import { gravedad } from '../fisica/gravedad';
 import { masaInicial, masasCombustion } from '../fisica/masas';
 import { caudalMasico, ispSegunPresion, tiempoCombustion, velocidadExpulsion } from '../fisica/motor';
-import { crearIntegradorRK4, interpolarHermite, type FuncionDerivada } from './integrador';
+import { crearIntegrador, interpolarHermite, type FuncionDerivada, type Integrador } from './integrador';
 import { buscarRaiz } from './raiz';
 import type { Cohete, Etapa, Evento, Muestra, OpcionesSimulacion, ResultadoSimulacion, TipoEvento } from './tipos';
 import { DURACION_MAXIMA, ErrorEntrada, validarCohete, validarOpciones } from './validacion';
@@ -27,6 +27,7 @@ const PERIODO_MUESTREO = 0.05;
 const TOLERANCIA_EVENTO = 1e-12;
 
 export const OPCIONES_POR_DEFECTO: Readonly<OpcionesSimulacion> = {
+  metodo: 'rk4',
   dt: 0.01,
   duracionMaxima: DURACION_MAXIMA,
   altitudInicial: 0,
@@ -34,6 +35,7 @@ export const OPCIONES_POR_DEFECTO: Readonly<OpcionesSimulacion> = {
   gravedad: true,
   arrastre: true,
   contrapresion: true,
+  detenerEnApogeo: false,
 };
 
 type Fase = 'plataforma' | 'combustion1' | 'pausa' | 'combustion2' | 'balistico';
@@ -82,9 +84,9 @@ function crearTramo(fase: Fase, etapa: 1 | 2, acoplada: Etapa, motor: Etapa | nu
 
 /**
  * Simula el vuelo vertical completo de un cohete de dos etapas.
- * Integra con RK4 de paso fijo; los pasos se acortan para terminar justo en el despegue y
- * en cada fin de combustión, y los demás eventos se localizan dentro del paso buscando la
- * raíz sobre el propio paso RK4.
+ * Integra con paso fijo (RK4 o Euler simpléctico); los pasos se acortan para terminar justo en
+ * el despegue y en cada fin de combustión, y los demás eventos se localizan dentro del paso
+ * buscando la raíz sobre el propio paso del integrador.
  * @throws {ErrorEntrada} si algún dato está fuera de rango
  */
 export function simular(cohete: Cohete, opciones: Partial<OpcionesSimulacion> = {}): ResultadoSimulacion {
@@ -119,7 +121,7 @@ function mezclar(periodicas: Muestra[], eventos: Evento[]): Muestra[] {
 class Vuelo {
   private readonly cohete: Cohete;
   private readonly opciones: OpcionesSimulacion;
-  private readonly rk4 = crearIntegradorRK4(N);
+  private readonly integrador: Integrador;
   private readonly derivada: FuncionDerivada = (y, dy) => this.evaluarDerivada(y, dy);
 
   // Estado al principio (y, dy) y al final (y1, dy1) del paso en curso.
@@ -154,6 +156,7 @@ class Vuelo {
   private pasos = 0;
   private energiaInicial = 0;
   private derivaEnergiaMaxima = 0;
+  private terminado = false; // apogeo balístico con detenerEnApogeo
 
   private readonly muestras: Muestra[] = []; // las de 20 Hz, en orden
   private readonly eventos: Evento[] = [];
@@ -161,6 +164,7 @@ class Vuelo {
   constructor(cohete: Cohete, opciones: OpcionesSimulacion) {
     this.cohete = cohete;
     this.opciones = opciones;
+    this.integrador = crearIntegrador(opciones.metodo, N, H, V);
   }
 
   /** Recorre la secuencia de vuelo de FISICA.md hasta el impacto o el límite de duración. */
@@ -251,7 +255,7 @@ class Vuelo {
         deltaVIdeal: ultima.deltaVIdeal,
       },
       diagnostico: {
-        metodo: 'rk4',
+        metodo: this.opciones.metodo,
         dt: this.opciones.dt,
         pasos: this.pasos,
         tiempoCalculoMs: 0,
@@ -373,7 +377,7 @@ class Vuelo {
       let t1 = inicio + k * dt;
       if (t1 > objetivo - 1e-9 * dt) t1 = objetivo;
       let h = t1 - this.t;
-      this.rk4.paso(this.derivada, this.y, this.dy, h, this.y1);
+      this.integrador.paso(this.derivada, this.y, this.dy, h, this.y1);
       this.derivada(this.y1, this.dy1);
       this.pasos++;
 
@@ -395,6 +399,7 @@ class Vuelo {
         this.registrarEvento('impacto');
         return true;
       }
+      if (this.terminado) return true;
     }
     return tFin > duracionMaxima;
   }
@@ -422,6 +427,8 @@ class Vuelo {
       // Igual que en el impacto: v = 0 por definición, sin el residuo de la raíz.
       this.yAux[V] = 0;
       this.apogeo = this.proponer(this.apogeo, this.t + tau, this.yAux, this.yAux[H]!);
+      // Sin motor ya no puede haber otro apogeo más alto.
+      if (this.opciones.detenerEnApogeo && this.tramo.fase === 'balistico') this.terminado = true;
     }
 
     if (y[V]! > 0 && dq0 > 0 && dq1 <= 0) {
@@ -434,7 +441,7 @@ class Vuelo {
 
   /**
    * Localiza dentro del paso actual el instante en que `funcion` se anula, evaluando el
-   * propio paso RK4 acortado. Deja en yAux y dyAux el estado en ese instante.
+   * propio paso del integrador acortado. Deja en yAux y dyAux el estado en ese instante.
    * @returns tiempo desde el inicio del paso (s)
    */
   private localizar(
@@ -444,7 +451,7 @@ class Vuelo {
     g1: number,
   ): number {
     const evaluar = (tau: number): number => {
-      this.rk4.paso(this.derivada, this.y, this.dy, tau, this.yAux);
+      this.integrador.paso(this.derivada, this.y, this.dy, tau, this.yAux);
       this.derivada(this.yAux, this.dyAux);
       return funcion(this.yAux, this.dyAux);
     };

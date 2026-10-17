@@ -13,7 +13,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ COHETE: prueba-01   MODELO: 1D  ATM: exp  INT: RK4 dt=1.000e-2 s   [PARÁM]   │
+│ COHETE: prueba-01   MODELO: 1D  ATM: exp  INT: RK4 dt=1.000e-2 s [EXP][PARÁM]│
 ├────────────────────────────────────┬─────────────────────────────────────────┤
 │ TELEMETRÍA            T+ 142.350 s │                                         │
 │ h        48 213.7    m             │   h [km]                                │
@@ -25,7 +25,7 @@
 │ Isp         339.8    s             │                                         │
 │ TWR           3.24                 │   (gráficas apiladas, eje t común)      │
 │ ρ        1.381e-3    kg/m³         ├─────────────────────────────────────────┤
-│ p           11.92    Pa            │ ESQUEMA (a escala)    │ EVENTOS         │
+│ p           11.92    Pa            │ ESQUEMA (a escala)    │ eventos│diag.│… │
 │ q         1 578.     Pa            │                       │ T+  0.000 desp. │
 │ Mach          5.01                 │        ↑ F            │ T+ 58.210 M1    │
 │ etapa         2   (on)             │        ▯              │ T+ 71.904 maxQ  │
@@ -42,6 +42,8 @@
 │ DIAGNÓSTICO: 23 815 pasos · 4.2 ms · deriva E 2.1e-9 · Richardson Δh_ap 0.4 m │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+El panel de abajo a la derecha tiene pestañas: eventos, diagnóstico, comparación y barrido. La barra de exportación se abre bajo la cabecera con [EXP] o con E.
 
 Los valores son solo ilustrativos. El presupuesto de Δv se refiere a lo acumulado hasta el instante actual: la Δv ideal crece con el propelente quemado.
 
@@ -65,18 +67,27 @@ Todas las variables de estado y derivadas en el instante actual, con su unidad: 
 - En 2D: vector velocidad, ángulo de ataque y ángulo de trayectoria con cotas.
 
 ### Presupuesto de Δv
-Δv ideal menos cada pérdida acumulada hasta el instante actual (ver [FISICA.md § Pérdidas de Δv](FISICA.md#pérdidas-de-δv)), y la diferencia con la velocidad real como comprobación de cierre.
+Δv ideal menos cada pérdida acumulada hasta el instante actual, con su porcentaje del ideal (ver [FISICA.md § Pérdidas de Δv](FISICA.md#pérdidas-de-δv)), el resultante, la velocidad ganada |v| − |v0| y la diferencia entre ambos como comprobación de cierre (absoluta y relativa al ideal). Después del apogeo la identidad no se aplica y el cierre se muestra como «no aplicable en el descenso».
 
 ### Eventos
 Lista con el instante exacto (T+ con milisegundos) y el estado completo en ese instante. Al hacer clic, el reproductor salta al evento.
 
 ### Diagnóstico numérico
-Método de integración, dt, número de pasos, tiempo de cálculo, deriva de energía en las fases balísticas y estimación del error por extrapolación de Richardson (comparando con dt/2).
+Método de integración, dt, número de pasos, tiempo de cálculo, número de muestras y deriva de energía. Debajo, para cada métrica del vuelo, el valor con dt, su error estimado por extrapolación de Richardson, el valor extrapolado y el orden de convergencia observado (con dt, dt/2 y dt/4, ver [FISICA.md § Integración numérica](FISICA.md#integración-numérica)). Se calcula en segundo plano tras cada cambio; el pie resume el error del apogeo.
+
+### Comparación
+- «Fijar la actual como referencia» guarda la simulación que se ve. Al cambiar parámetros, las gráficas superponen la referencia con línea discontinua.
+- Tablas de diferencias (actual − referencia): datos de entrada que cambian, cada métrica con su diferencia absoluta y relativa, e instantes de los eventos.
+
+### Barrido
+- Un parámetro de entrada cualquiera, un intervalo y un número de puntos (2 a 200). Al calcular se simula cada punto en segundo plano, con el progreso y la opción de cancelar.
+- Gráfica de la métrica elegida (apogeo, velocidad al fin de la combustión 2, Max-Q…) frente al parámetro, con una línea vertical en el valor actual. Los puntos con entrada no válida se omiten y se indican.
+- Exportación del barrido a CSV.
 
 ### Parámetros
 - Panel lateral con todos los datos de entrada en una tabla, con unidad y validación en cada campo.
 - Valores derivados mostrados al lado, sin editar: masa al despegue, ṁ, tiempo de combustión, TWR inicial y Δv ideal por etapa.
-- Selección de modelo: 1D o 2D, tipo de atmósfera, método de integración y dt.
+- Selección de modelo: 1D o 2D, tipo de atmósfera, método de integración (RK4 o Euler simpléctico) y dt.
 
 ## Reproductor
 
@@ -88,7 +99,9 @@ Método de integración, dt, número de pasos, tiempo de cálculo, deriva de ene
 
 - CSV con todas las muestras y todas las variables, con unidades en la cabecera.
 - JSON con los parámetros de entrada, la configuración del modelo y los eventos, para reproducir la simulación exactamente.
-- Gráficas en SVG.
+- Gráficas en SVG, tal como se ven (magnitudes, escala logarítmica, zoom y referencia), en escala de grises sobre blanco.
+- Cargar un JSON exportado para repetir la simulación.
+- La URL lleva siempre todos los parámetros de la simulación que se ve: copiarla (botón «copiar enlace») basta para compartirla y reproducirla exactamente.
 
 ## Teclado
 
@@ -100,7 +113,7 @@ Método de integración, dt, número de pasos, tiempo de cálculo, deriva de ene
 | 1–4 | Velocidad ×0.1 / ×1 / ×10 / ×100 |
 | Inicio | Volver a T+0 |
 | P | Abrir o cerrar los parámetros |
-| E | Exportar |
+| E | Abrir o cerrar la barra de exportación |
 
 ## Adaptación
 

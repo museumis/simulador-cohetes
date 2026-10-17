@@ -45,7 +45,7 @@ body {
   margin: 0;
   height: 100vh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   background: var(--fondo);
   color: var(--texto);
 }
@@ -63,6 +63,11 @@ select {
 button {
   padding: 0.1rem 0.5rem;
   cursor: pointer;
+}
+
+button:disabled {
+  color: var(--texto-tenue);
+  cursor: default;
 }
 
 button:hover,
@@ -125,7 +130,26 @@ table {
   gap: 0.4rem;
 }
 
-/* Distribución */
+#barra-exportar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--borde);
+}
+
+#barra-exportar[hidden] {
+  display: none;
+}
+
+/* Distribución. Cada franja tiene su fila fija: la barra de exportación oculta no ocupa
+   sitio y no desplaza a las demás. */
+
+#cabecera { grid-row: 1; }
+#barra-exportar { grid-row: 2; }
+#cuerpo { grid-row: 3; }
+#panel-reproductor { grid-row: 4; }
+#panel-diagnostico { grid-row: 5; }
 
 #cuerpo {
   display: flex;
@@ -136,11 +160,11 @@ table {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: 27rem minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) minmax(15rem, 34%);
+  grid-template-columns: 27rem minmax(0, 1fr) minmax(0, 1.6fr);
+  grid-template-rows: minmax(0, 1fr) minmax(15rem, 36%);
   grid-template-areas:
     'telemetria graficas graficas'
-    'telemetria esquema eventos';
+    'presupuesto esquema analisis';
 }
 
 #panel-telemetria {
@@ -160,8 +184,13 @@ table {
   overflow: hidden;
 }
 
-#panel-eventos {
-  grid-area: eventos;
+#panel-presupuesto {
+  grid-area: presupuesto;
+}
+
+#panel-analisis {
+  grid-area: analisis;
+  padding-top: 0;
 }
 
 #panel-parametros {
@@ -218,6 +247,13 @@ table {
 .grafica-cabecera button {
   padding: 0 0.3rem;
   font-size: 11px;
+}
+
+.grafica-leyenda {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--texto-tenue);
+  white-space: pre;
 }
 
 .grafica-lienzo {
@@ -287,6 +323,88 @@ table {
 
 .tabla-eventos tr.actual td:first-child {
   box-shadow: inset 2px 0 var(--acento);
+}
+
+/* Pestañas de eventos y análisis */
+
+.pestanas {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.4rem 0 0.3rem;
+  margin-bottom: 0.2rem;
+  background: var(--fondo-panel);
+  border-bottom: 1px solid var(--borde);
+}
+
+.pestanas [role='tab'] {
+  border-color: transparent;
+}
+
+.pestanas [role='tab'][aria-selected='true'] {
+  border-color: var(--borde);
+  border-bottom-color: var(--acento);
+}
+
+.pestana-contenido[hidden] {
+  display: none;
+}
+
+.controles-analisis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.3rem 0;
+}
+
+.campo-corto {
+  width: 7rem;
+  text-align: right;
+  padding: 0.05rem 0.3rem;
+}
+
+.controles-analisis .campo-corto:nth-of-type(3) {
+  width: 3.5rem;
+}
+
+.barrido-lienzo {
+  min-height: 200px;
+}
+
+/* Tablas de datos: diagnóstico y comparación */
+
+.tabla-datos {
+  margin-bottom: 0.5rem;
+}
+
+.tabla-datos th {
+  font-weight: normal;
+  color: var(--texto-tenue);
+  text-align: right;
+  padding: 0 0 0.2rem 0.8rem;
+  white-space: nowrap;
+}
+
+.tabla-datos th:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.tabla-datos td {
+  padding: 0.05rem 0 0.05rem 0.8rem;
+  white-space: nowrap;
+}
+
+.tabla-datos td.texto {
+  padding-left: 0;
+  color: var(--texto-tenue);
+}
+
+.tabla-datos td.numero {
+  text-align: right;
 }
 
 /* Reproductor */
@@ -422,8 +540,8 @@ table {
 
   #principal {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 48rem 22rem auto;
-    grid-template-areas: 'telemetria' 'graficas' 'esquema' 'eventos';
+    grid-template-rows: auto 48rem auto 22rem auto;
+    grid-template-areas: 'telemetria' 'graficas' 'presupuesto' 'esquema' 'analisis';
   }
 
   #panel-parametros {

@@ -1,3 +1,7 @@
+import type { MetodoIntegracion } from './integrador';
+
+export type { MetodoIntegracion };
+
 /** Datos de entrada de una etapa. */
 export interface Etapa {
   masaSeca: number;       // kg, estructura y motores sin propelente
@@ -20,6 +24,7 @@ export interface Cohete {
 
 /** Configuración de una simulación. Los interruptores físicos sirven para los tests de validación. */
 export interface OpcionesSimulacion {
+  metodo: MetodoIntegracion;
   dt: number;               // s, paso de integración
   duracionMaxima: number;   // s, límite de seguridad del vuelo simulado
   altitudInicial: number;   // m; con 0 y velocidad 0 el cohete parte de la plataforma
@@ -27,6 +32,7 @@ export interface OpcionesSimulacion {
   gravedad: boolean;        // false: g = 0
   arrastre: boolean;        // false: D = 0
   contrapresion: boolean;   // false: Isp y empuje de vacío a cualquier altitud
+  detenerEnApogeo: boolean; // true: termina en el apogeo del vuelo balístico (barridos)
 }
 
 /** Estado completo del vuelo en un instante. */
@@ -87,7 +93,7 @@ export interface ResultadoSimulacion {
     deltaVIdeal: number;     // m/s, acumulada al final
   };
   diagnostico: {
-    metodo: 'rk4';
+    metodo: MetodoIntegracion;
     dt: number;              // s
     pasos: number;
     tiempoCalculoMs: number; // ms

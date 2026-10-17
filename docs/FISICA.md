@@ -135,10 +135,13 @@ dm/dt = −ṁ       (solo durante la combustión)
 
 ### Integración numérica
 
-- RK4 con paso fijo `dt = 0,01 s` (configurable).
+- RK4 con paso fijo `dt = 0,01 s` (configurable). Para comparar se puede elegir Euler simpléctico (semiimplícito, orden 1): todas las componentes avanzan con la derivada al principio del paso salvo la altitud, que usa la velocidad ya actualizada, `v₁ = v₀ + a(y₀)·dt`, `h₁ = h₀ + v₁·dt`. En vuelo balístico conserva una energía modificada (la deriva no crece), pero su error es mucho mayor que el de RK4.
 - Si el paso actual atravesaría el fin de una combustión, se acorta para terminar justo en ese instante. Así la masa nunca queda negativa y las discontinuidades del empuje no degradan el orden del método.
-- Los eventos sin instante conocido de antemano (Mach 1, Max-Q, apogeo, impacto) se localizan dentro del paso buscando la raíz sobre el propio paso RK4 acortado (regula falsi de Illinois, tolerancia 10⁻¹² s). Así la precisión del evento es la del integrador y no la de una interpolación.
-- Estimación del error: se repite la simulación con `dt/2` y se aplica extrapolación de Richardson, `error ≈ (x_dt − x_dt/2) / (2⁴ − 1)`.
+- Los eventos sin instante conocido de antemano (Mach 1, Max-Q, apogeo, impacto) se localizan dentro del paso buscando la raíz sobre el propio paso del integrador acortado (regula falsi de Illinois, tolerancia 10⁻¹² s). Así la precisión del evento es la del integrador y no la de una interpolación.
+- Estimación del error: se repite la simulación con `dt/2` y `dt/4` y se aplica extrapolación de Richardson con el orden p del método (4 en RK4, 1 en Euler simpléctico). Si `x(h) = X + C·hᵖ`:
+  - error del valor mostrado: `x(dt) − X ≈ (x_dt − x_dt/2) · 2ᵖ / (2ᵖ − 1)` (el de `x(dt/2)` es `(x_dt − x_dt/2) / (2ᵖ − 1)`);
+  - valor extrapolado: `X ≈ x_dt/2 + (x_dt/2 − x_dt) / (2ᵖ − 1)`;
+  - orden observado: `log₂((x_dt − x_dt/2) / (x_dt/2 − x_dt/4))`, que debe salir cercano a p. Si las dos diferencias no tienen el mismo signo, el error está al nivel del redondeo y no se puede resolver (con RK4 y dt = 0,01 s suele ocurrir: el apogeo cambia en 10⁻⁷ m).
 - La salida se muestrea a 20 Hz (cada 0,05 s) con interpolación cúbica de Hermite dentro del paso (error O(dt⁴), sin evaluaciones extra), más una muestra exacta en cada evento. En una discontinuidad (separación) hay dos muestras con el mismo t: antes y después.
 - Límite de seguridad: 2 horas de vuelo simulado.
 

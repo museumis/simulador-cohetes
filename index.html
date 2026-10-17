@@ -12,18 +12,21 @@
       <span class="acciones">
         <button type="button" id="boton-unidades" title="Alternar entre SI y km · t · kN · kPa"></button>
         <button type="button" id="boton-tema" title="Alternar tema oscuro y claro"></button>
+        <button type="button" id="boton-exportar" title="Exportar, compartir o cargar [E]" aria-controls="barra-exportar">exportar [E]</button>
         <button type="button" id="boton-parametros" title="Abrir o cerrar los parámetros [P]" aria-controls="panel-parametros">parámetros [P]</button>
       </span>
     </header>
+    <div id="barra-exportar" aria-label="Exportación"></div>
     <div id="cuerpo">
       <main id="principal">
         <section id="panel-telemetria" class="panel" aria-label="Telemetría"></section>
         <section id="panel-graficas" class="panel" aria-label="Gráficas"></section>
+        <section id="panel-presupuesto" class="panel" aria-label="Presupuesto de Δv"></section>
         <section id="panel-esquema" class="panel" aria-label="Esquema a escala">
           <div class="panel-titulo">ESQUEMA (a escala)</div>
           <canvas id="lienzo-esquema"></canvas>
         </section>
-        <section id="panel-eventos" class="panel" aria-label="Eventos"></section>
+        <section id="panel-analisis" class="panel" aria-label="Eventos y análisis"></section>
       </main>
       <aside id="panel-parametros" class="panel" aria-label="Parámetros"></aside>
     </div>

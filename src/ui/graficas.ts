@@ -1,6 +1,9 @@
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { graficasSVG, type GraficaSVG } from '../exportacion/svg';
 import type { ResultadoSimulacion } from '../simulacion/tipos';
+import { unirSeries } from '../util/series';
+import { leerColores } from './colores';
 import { formatearNumero } from '../util/formato';
 import { buscarMagnitud, GRAFICAS_POR_DEFECTO, MAGNITUDES, unidadDe, type SistemaUnidades } from './magnitudes';
 
@@ -46,14 +49,10 @@ export interface Graficas {
   refrescarTema(): void;
   /** Mueve el cursor de tiempo del reproductor. */
   cursor(t: number): void;
-}
-
-interface Colores {
-  texto: string;
-  tenue: string;
-  rejilla: string;
-  acento: string;
-  fuente: string;
+  /** Superpone (o quita, con null) una simulación de referencia con línea discontinua. */
+  setReferencia(referencia: ResultadoSimulacion | null): void;
+  /** Las gráficas tal como se ven (magnitudes, escalas, zoom y referencia) en un SVG autónomo. */
+  exportarSVG(titulo: string): string;
 }
 
 interface Panel {
@@ -62,21 +61,10 @@ interface Panel {
   elemento: HTMLElement;
   selector: HTMLSelectElement;
   botonLog: HTMLButtonElement;
+  leyenda: HTMLElement;
   lienzo: HTMLElement;
   grafica: uPlot | null;
   cursor: HTMLElement;
-}
-
-function leerColores(): Colores {
-  const estilo = getComputedStyle(document.documentElement);
-  const v = (nombre: string): string => estilo.getPropertyValue(nombre).trim();
-  return {
-    texto: v('--texto'),
-    tenue: v('--texto-tenue'),
-    rejilla: v('--rejilla'),
-    acento: v('--acento'),
-    fuente: `11px ${getComputedStyle(document.body).fontFamily}`,
-  };
 }
 
 /**
@@ -86,6 +74,7 @@ function leerColores(): Colores {
 export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: number) => void): Graficas {
   contenedor.replaceChildren();
   let resultado: ResultadoSimulacion | null = null;
+  let referencia: ResultadoSimulacion | null = null;
   let sistema: SistemaUnidades = 'si';
   let colores = leerColores();
   let tCursor = 0;
@@ -105,7 +94,11 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
     botonLog.type = 'button';
     botonLog.textContent = 'log';
     botonLog.title = 'Escala logarítmica en el eje vertical';
-    cabecera.append(selector, botonLog);
+    const leyenda = document.createElement('span');
+    leyenda.className = 'grafica-leyenda';
+    leyenda.textContent = '── actual  ╌╌ referencia';
+    leyenda.hidden = true;
+    cabecera.append(selector, botonLog, leyenda);
     const lienzo = document.createElement('div');
     lienzo.className = 'grafica-lienzo';
     elemento.append(cabecera, lienzo);
@@ -113,7 +106,7 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
 
     const cursor = document.createElement('div');
     cursor.className = 'grafica-cursor';
-    const panel: Panel = { magnitudId, log: false, elemento, selector, botonLog, lienzo, grafica: null, cursor };
+    const panel: Panel = { magnitudId, log: false, elemento, selector, botonLog, leyenda, lienzo, grafica: null, cursor };
     selector.addEventListener('change', () => {
       panel.magnitudId = selector.value;
       construir(panel);
@@ -133,6 +126,30 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
       }),
     );
     panel.botonLog.setAttribute('aria-pressed', String(panel.log));
+    panel.leyenda.hidden = referencia === null;
+  }
+
+  /**
+   * Eje x y series de un panel: la actual y, si la hay, la de referencia sobre un eje x común.
+   * En escala logarítmica solo se dibujan los valores dentro de DECADAS_LOG décadas bajo el
+   * máximo: ρ y q bajan a ~1e-200 a miles de km y uPlot no termina de generar las marcas.
+   */
+  function datosPanel(panel: Panel): { x: number[]; series: (number | null)[][] } {
+    const magnitud = buscarMagnitud(panel.magnitudId);
+    const { divisor } = unidadDe(magnitud, sistema);
+    const valores = (r: ResultadoSimulacion): number[] => r.muestras.map((m) => magnitud.valor(m) / divisor);
+    const tiempos = (r: ResultadoSimulacion): number[] => r.muestras.map((m) => m.t);
+    const actual = valores(resultado!);
+    const ref = referencia ? valores(referencia) : null;
+    let series: (number | null)[][] = ref ? [actual, ref] : [actual];
+    if (panel.log) {
+      const maximo = Math.max(...series.map((ys) => ys.reduce<number>((a, b) => Math.max(a, b ?? -Infinity), -Infinity)));
+      const minimoLog = maximo * 10 ** -DECADAS_LOG;
+      series = series.map((ys) => ys.map((v) => (v !== null && v > 0 && v >= minimoLog ? v : null)));
+    }
+    if (!referencia) return { x: tiempos(resultado!), series };
+    const u = unirSeries(tiempos(resultado!), series[0]!, tiempos(referencia), series[1]!);
+    return { x: u.x, series: [u.a, u.b] };
   }
 
   function tamano(panel: Panel): { width: number; height: number } {
@@ -177,15 +194,7 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
     panel.grafica = null;
     rellenarSelector(panel);
     if (!resultado) return;
-    const magnitud = buscarMagnitud(panel.magnitudId);
-    const { divisor } = unidadDe(magnitud, sistema);
-    const muestras = resultado.muestras;
-    const xs = muestras.map((m) => m.t);
-    const valores = muestras.map((m) => magnitud.valor(m) / divisor);
-    // En escala logarítmica solo se dibujan los valores dentro de DECADAS_LOG décadas bajo el
-    // máximo: ρ y q bajan a ~1e-200 a miles de km y uPlot no termina de generar las marcas.
-    const minimoLog = valores.reduce((a, b) => Math.max(a, b), -Infinity) * 10 ** -DECADAS_LOG;
-    const ys = panel.log ? valores.map((v) => (v > 0 && v >= minimoLog ? v : null)) : valores;
+    const { x, series } = datosPanel(panel);
     const ultimo = panel === paneles[paneles.length - 1];
     const eje = {
       stroke: colores.texto,
@@ -228,13 +237,17 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
           values: (_u, valores) => rotulosEje(valores, panel.log ? 1 : 3),
         },
       ],
-      series: [{}, { stroke: colores.texto, width: 1, points: { show: false } }],
+      series: [
+        {},
+        { stroke: colores.texto, width: 1, points: { show: false } },
+        ...(series.length > 1 ? [{ stroke: colores.texto, width: 1, dash: [5, 3], points: { show: false } }] : []),
+      ],
       hooks: {
         draw: [dibujarEventos],
         setScale: [propagarEscalaX],
       },
     };
-    const u = new uPlot(opciones, [xs, ys], panel.lienzo);
+    const u = new uPlot(opciones, [x, ...series] as uPlot.AlignedData, panel.lienzo);
     panel.grafica = u;
     if (rangoX) {
       sincronizando = true;
@@ -290,6 +303,34 @@ export function crearGraficas(contenedor: HTMLElement, alElegirInstante: (t: num
     cursor(t) {
       tCursor = t;
       paneles.forEach(colocarCursor);
+    },
+    setReferencia(nueva) {
+      referencia = nueva;
+      construirTodas();
+    },
+    exportarSVG(titulo) {
+      if (!resultado) throw new Error('No hay ninguna simulación cargada');
+      const muestras = resultado.muestras;
+      const xMin = rangoX?.min ?? muestras[0]!.t;
+      const xMax = rangoX?.max ?? muestras[muestras.length - 1]!.t;
+      const graficas = paneles.map((p): GraficaSVG => {
+        const magnitud = buscarMagnitud(p.magnitudId);
+        const unidad = unidadDe(magnitud, sistema).unidad;
+        const { x, series } = datosPanel(p);
+        return {
+          etiqueta: unidad ? `${magnitud.simbolo} [${unidad}]` : magnitud.simbolo,
+          series: series.map((y, i) => ({ x, y, discontinua: i === 1 })),
+          log: p.log,
+        };
+      });
+      const leyenda = referencia ? '   (continua: actual · discontinua: referencia)' : '';
+      return graficasSVG(graficas, {
+        titulo: `${titulo}${leyenda}`,
+        etiquetaX: 't [s]',
+        xMin,
+        xMax,
+        eventos: resultado.eventos.map((e) => e.t),
+      });
     },
   };
 }

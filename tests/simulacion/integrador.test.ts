@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { crearIntegradorRK4, interpolarHermite, type FuncionDerivada } from '../../src/simulacion/integrador';
+import {
+  crearEulerSimplectico,
+  crearIntegradorRK4,
+  interpolarHermite,
+  type FuncionDerivada,
+  type Integrador,
+} from '../../src/simulacion/integrador';
 import { esperarCercano } from '../ayudas';
 
 // Oscilador armónico: y'' = −y, con solución y = cos t, y' = −sin t.
@@ -8,14 +14,13 @@ const oscilador: FuncionDerivada = (y, dy) => {
   dy[1] = -y[0]!;
 };
 
-function integrarOscilador(h: number, pasos: number): Float64Array {
-  const rk4 = crearIntegradorRK4(2);
+function integrarOscilador(h: number, pasos: number, integrador: Integrador = crearIntegradorRK4(2)): Float64Array {
   let y = new Float64Array([1, 0]);
   let siguiente = new Float64Array(2);
   const dy = new Float64Array(2);
   for (let i = 0; i < pasos; i++) {
     oscilador(y, dy);
-    rk4.paso(oscilador, y, dy, h, siguiente);
+    integrador.paso(oscilador, y, dy, h, siguiente);
     [y, siguiente] = [siguiente, y];
   }
   return y;
@@ -46,6 +51,28 @@ describe('RK4', () => {
     const cociente = error(200) / error(400);
     expect(cociente).toBeGreaterThan(15);
     expect(cociente).toBeLessThan(17);
+  });
+});
+
+describe('Euler simpléctico', () => {
+  const euler = crearEulerSimplectico(2, 0, 1);
+
+  it('es de orden 1: con la mitad de paso el error global baja a la mitad', () => {
+    const tFinal = 10;
+    const error = (pasos: number): number => {
+      const y = integrarOscilador(tFinal / pasos, pasos, euler);
+      return Math.hypot(y[0]! - Math.cos(tFinal), y[1]! + Math.sin(tFinal));
+    };
+    const cociente = error(4_000) / error(8_000);
+    expect(cociente).toBeGreaterThan(1.9);
+    expect(cociente).toBeLessThan(2.1);
+  });
+
+  it('la energía no deriva: tras 1000 periodos el error sigue siendo O(h)', () => {
+    const h = 0.01;
+    const y = integrarOscilador(h, Math.round((2000 * Math.PI) / h), euler);
+    const energia = (y[0]! ** 2 + y[1]! ** 2) / 2;
+    expect(Math.abs(energia - 0.5)).toBeLessThan(h);
   });
 });
 
