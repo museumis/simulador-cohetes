@@ -42,7 +42,7 @@ const botonParametros = elemento<HTMLButtonElement>('boton-parametros');
 const panelParametros = elemento('panel-parametros');
 const resumen = elemento('resumen-configuracion');
 
-let sistema: SistemaUnidades = 'si';
+let sistema: SistemaUnidades = 'practico';
 let tema: Tema = matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
 let iniciado = false;
 let actual: Simulacion;
@@ -195,7 +195,7 @@ function aplicarTema(): void {
 }
 
 function aplicarSistema(): void {
-  botonUnidades.textContent = sistema === 'si' ? 'unidades: SI' : 'unidades: km · t · kN';
+  botonUnidades.textContent = sistema === 'si' ? 'unidades: SI' : 'unidades: km · km/h · kN';
   telemetria.setSistema(sistema);
   graficas.setSistema(sistema);
   eventos.setSistema(sistema);

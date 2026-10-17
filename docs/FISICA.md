@@ -2,7 +2,7 @@
 
 ## Unidades
 
-Todo el cálculo interno usa **unidades SI**: metros, segundos, kilogramos, newtons y pascales. La conversión a unidades legibles (km, t, kN, km/h) se hace solo en la interfaz.
+Todo el cálculo interno usa **unidades SI**: metros, segundos, kilogramos, newtons y pascales. La conversión a unidades legibles (km, kN, km/h) se hace solo en la interfaz.
 
 ## Constantes
 

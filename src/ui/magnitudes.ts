@@ -2,7 +2,7 @@ import { G0 } from '../fisica/constantes';
 import type { MetodoIntegracion, Muestra, TipoEvento } from '../simulacion/tipos';
 import { formatearNumero } from '../util/formato';
 
-/** Sistema de unidades de la interfaz: SI estricto o unidades prácticas (km, t, kN, kPa). */
+/** Sistema de unidades de la interfaz: SI estricto o unidades prácticas (km, km/h, kN, kPa); la masa siempre en kg. */
 export type SistemaUnidades = 'si' | 'practico';
 
 /** Una magnitud que se puede mostrar en la telemetría o en una gráfica. */
@@ -17,16 +17,17 @@ export interface Magnitud {
 }
 
 const km = { unidad: 'km', divisor: 1_000 };
-const t = { unidad: 't', divisor: 1_000 };
+const kg = { unidad: 'kg', divisor: 1 };
 const kN = { unidad: 'kN', divisor: 1_000 };
 const kPa = { unidad: 'kPa', divisor: 1_000 };
+const kmh = { unidad: 'km/h', divisor: 1 / 3.6 };
 
 /** Todas las magnitudes de una muestra, en el orden de la telemetría. */
 export const MAGNITUDES: readonly Magnitud[] = [
   { id: 'altitud', simbolo: 'h', nombre: 'altitud', unidad: 'm', practica: km, cifras: 6, valor: (m) => m.altitud },
-  { id: 'velocidad', simbolo: 'v', nombre: 'velocidad', unidad: 'm/s', cifras: 6, valor: (m) => m.velocidad },
+  { id: 'velocidad', simbolo: 'v', nombre: 'velocidad', unidad: 'm/s', practica: kmh, cifras: 6, valor: (m) => m.velocidad },
   { id: 'aceleracion', simbolo: 'a', nombre: 'aceleración', unidad: 'm/s²', cifras: 4, valor: (m) => m.aceleracion },
-  { id: 'masa', simbolo: 'm', nombre: 'masa', unidad: 'kg', practica: t, cifras: 6, valor: (m) => m.masa },
+  { id: 'masa', simbolo: 'm', nombre: 'masa', unidad: 'kg', cifras: 6, valor: (m) => m.masa },
   { id: 'empuje', simbolo: 'F', nombre: 'empuje', unidad: 'N', practica: kN, cifras: 4, valor: (m) => m.empuje },
   { id: 'caudal', simbolo: 'ṁ', nombre: 'caudal másico', unidad: 'kg/s', cifras: 4, valor: (m) => m.caudal },
   { id: 'isp', simbolo: 'Isp', nombre: 'impulso específico', unidad: 's', cifras: 4, valor: (m) => m.isp },
@@ -62,7 +63,7 @@ export function unidadDe(m: Magnitud, sistema: SistemaUnidades): { unidad: strin
 /** Valor ya formateado de una magnitud en el sistema elegido, sin la unidad. */
 export function textoMagnitud(m: Magnitud, muestra: Muestra, sistema: SistemaUnidades): string {
   const { divisor } = unidadDe(m, sistema);
-  // Dividir por 1000 no cambia las cifras significativas.
+  // Cambiar de escala no cambia las cifras significativas.
   return formatearNumero(m.valor(muestra) / divisor, m.cifras);
 }
 
@@ -73,7 +74,7 @@ export function aceleracionEnG(aceleracion: number): number {
 
 /** Valores sueltos (no de una muestra) con la unidad de una magnitud del mismo tipo. */
 export function textoConUnidad(valor: number, unidadSI: 'kg' | 'N' | 'm' | 'Pa', cifras: number, sistema: SistemaUnidades): string {
-  const practica = { kg: t, N: kN, m: km, Pa: kPa }[unidadSI];
+  const practica = { kg, N: kN, m: km, Pa: kPa }[unidadSI];
   const { unidad, divisor } = sistema === 'practico' ? practica : { unidad: unidadSI, divisor: 1 };
   return `${formatearNumero(valor / divisor, cifras)} ${unidad}`;
 }

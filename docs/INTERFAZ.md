@@ -6,7 +6,7 @@
 - **Los datos son la interfaz:** cada elemento en pantalla es una magnitud con su unidad, una gráfica con ejes rotulados o un esquema a escala.
 - **Paleta neutra:** escala de grises sobre fondo oscuro o claro. Un único color de acento para el cursor de tiempo y la selección. Las series de una gráfica se distinguen por tipo de línea (continua, discontinua, punteada) antes que por color.
 - **Tipografía monoespaciada** para todos los valores numéricos, alineados por la coma decimal.
-- **Precisión explícita:** cifras significativas coherentes con el modelo, notación científica fuera de [10⁻², 10⁷) y unidades SI siempre visibles (con la opción de mostrar km, t, kN y kPa).
+- **Precisión explícita:** cifras significativas coherentes con el modelo, notación científica fuera de [10⁻², 10⁷) y unidades SI siempre visibles (con la opción de mostrar km, km/h, kN y kPa).
 - **Manejo con teclado** en todo.
 
 ## Distribución
